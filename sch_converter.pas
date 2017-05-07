@@ -115,6 +115,20 @@ begin
 end;
 
 
+procedure addLibHeader(aOut : TStringList);
+begin
+    aOut.Add('EESchema-LIBRARY Version 2.3');
+    aOut.Add('#encoding utf-8');
+end;
+
+
+procedure addLibEnd(aOut : TStringList);
+begin
+    aOut.Add('#');
+    aOut.Add('#End Library');
+end;
+
+
 procedure processComponent(aComponent : ISch_Component; aTemplate : Boolean; aOut : TStringList);
 var
     objIterator, paramIterator  : ISch_Iterator;
@@ -206,24 +220,16 @@ begin
 end;
 
 
-procedure ConvertLibrary;
+procedure processLibrary(aTemplate : Boolean);
 var
   component     : ISch_Component;
   schLib        : ISch_Lib;
-  schDoc        : ISCh_doc;
   schIterator   : ISch_Iterator;
 
   libName       : TDynamicString;
   libOut        : TStringList;
   libOutPath    : TString;
-  template      : Boolean;
 begin
-    // Convert library or generate a template for kicadlib-gen
-    template := true;
-
-    if SchServer = nil then
-        exit;
-
     if UpperCase(Client.CurrentView.OwnerDocument.Kind) <> 'SCHLIB' then
     begin
         ShowWarning('This is not a Schematic Library document!');
@@ -234,26 +240,37 @@ begin
     if schLib = nil then
         exit;
 
-    libOut := TStringList.Create();
-    libOut.Clear();
-
-    // Header
-    libOut.Add('EESchema-LIBRARY Version 2.3');
-    libOut.Add('#encoding utf-8');
-
     libName := schLib.DocumentName;
     libName := ExtractFileName(libName);
+    libOutPath := ExtractFileDir(schLib.DocumentName) + '\';
+    libOut := TStringList.Create();
+
+    if not aTemplate then
+        addLibHeader(libOut);
 
     // Iterate through components in the library
     schIterator := schLib.SchLibIterator_Create;
     schIterator.AddFilter_ObjectSet(MkSet(eSchComponent));
-    // TODO if template, save components to separate files
+
     try
         component := schIterator.FirstSchObject;
 
         while component <> nil do
         begin
-            processComponent(component, template, libOut);
+            if aTemplate then
+            begin
+                libOut.Clear();
+                addLibHeader(libOut);
+            end;
+
+            processComponent(component, aTemplate, libOut);
+
+            if aTemplate then
+            begin
+                addLibEnd(libOut);
+                libOut.SaveToFile(libOutPath + fixName(component.LibReference) + '.lib');
+            end;
+
             component := schIterator.NextSchObject;
         end;
 
@@ -261,14 +278,31 @@ begin
         schLib.SchIterator_Destroy(SchIterator);
     end;
 
-    // Finish
-    libOut.Add('#');
-    libOut.Add('#End Library');
+    if not aTemplate then
+    begin
+        addLibHeader(libOut);
+        libOutPath := libOutPath + StringReplace(libName, '.SchLib', '.lib', rfReplaceAll);
+        libOut.SaveToFile(libOutPath);
+    end;
 
-    libOutPath := ExtractFileDir(schLib.DocumentName) + '\' + libName + '.lib';
-    libOutPath := StringReplace(libOutPath, '.SchLib', '', rfReplaceAll);
-    libOut.SaveToFile(libOutPath);
+    ShowMessage('Saved in ' + libOutPath);
     libOut.Free();
-
-    ShowMessage('Saved as ' + libOutPath);
 end;
+
+
+procedure ConvertLibrary;
+begin
+    if SchServer = nil then
+        exit;
+
+    processLibrary(false);
+end;
+
+
+procedure GenerateTemplates;
+begin
+    if SchServer = nil then
+        exit;
+
+    processLibrary(true);
+end;|
