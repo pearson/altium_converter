@@ -44,56 +44,82 @@ begin
 end;
 
 
+function fixName(aName : String) : String;
+begin
+    // Spaces are not allowed in symbol names in KiCad
+    result := StringReplace(aName, ' ', '_', rfReplaceAll);
+end;
+
+
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
     aTemplate : Boolean; aOut : TStringList);
 var
     value       : TString;
     buf         : TDynamicString;
-    skipName    : Boolean;
+    i, paramIdx : Integer;
 begin
+    // Correct default field numbers
+    if aParameter.Name = 'Designator' then
+    begin
+        aParamNr := 0;
+        value := StringReplace(aParameter.Text, '?', '', rfReplaceAll);
+    end
+    else if aParameter.Name = 'Value' then
+        aParamNr := 1
+    else if aParameter.Name = 'Footprint' then
+        aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
+    else if aParameter.Name = 'HelpURL' then
+        aParamNr := 3
+    else
+        value := aParameter.Text;
+
     if aTemplate = true then
     begin
-        // TODO handle special cases (check the kicadlib-gen script)
         value := '${' + aParameter.Name + '}';
-    end
-    else
-    begin
-        if aParameter.Name = 'Designator' then
-        begin
-            value := StringReplace(aParameter.Text, '?', '', rfReplaceAll);
-            skipName := true;
-        end
-        else if aParameter.Name = 'HelpURL' then
-        begin
-            aParamNr := 3;
-            skipName := true;
-        end
-        else
-        begin
-            value := aParameter.Text;
-            skipName := false;
-        end;
-    end;
 
-    if aParamNr < 4 then
-        skipName := true;
+        if aParamNr = 2 then
+            value := '${Library Name}:${Footprint Ref}';
+    end;
 
     buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
         + IntToStr(aParameter.Location.X) + ' ' + IntToStr(aParameter.Location.Y)
-        + ' 50 '    // TODO hardcoded size
-        + 'H I L CNN';   // TODO hardcoded justification/orientation/etc.
+        + ' 50 '            // TODO hardcoded size
+        + 'H I L CNN';      // TODO hardcoded justification/orientation/etc.
 
-    if not skipName then
+    // Default fields do not store the field name at the end
+    if not aParamNr < 4 then
         buf := buf + ' "' + aParameter.Name + '"';
 
-    aOut.Add(buf);
+    // Find the right place to insert the parameter
+    for i := 0 to aOut.Count() - 1 do
+    begin
+        // Extract the field number for i-th string in the output list
+        paramIdx := StrToInt(Copy(aOut[i], 2, Pos(' ', aOut[i]) - 2));
+
+        if paramIdx > aParamNr then
+            break;
+    end;
+
+    aOut.Insert(i, buf);
 end;
 
 
-procedure processComponent(aComponent : ISch_Component; aOut : TStringList);
+/// Adds missing default fields
+procedure fixParams(aComponent : ISch_Component; aOut : TStringList);
+begin
+    if Copy(aOut[0], 0, 2) <> 'F0' then
+        processParameter(aComponent.Designator, 0, aTemplate, paramList);
+
+    {if Copy(aOut[1], 0, 2) <> 'F1' then}
+        {aOut.Insert(1)}
+end;
+
+
+procedure processComponent(aComponent : ISch_Component; aTemplate : Boolean; aOut : TStringList);
 var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
+    paramList                   : TStringList;
     AnObject                    : ISch_GraphicalObject;
     i                           : Integer;
     name, designator            : TString;
@@ -103,8 +129,7 @@ begin
     aOut.Add('# ' + aComponent.LibReference);
     aOut.Add('#');
 
-    // spaces are not allowed in symbol names in KiCad
-    name := StringReplace(aComponent.LibReference, ' ', '_', rfReplaceAll);
+    name := fixName(aComponent.LibReference);
     designator := StringReplace(aComponent.Designator.Text, '?', '', rfReplaceAll);
 
     // TODO hardcoded fields
@@ -112,24 +137,25 @@ begin
     aOut.Add('DEF ' + name + ' ' + designator + ' 0 15 Y Y '
         + IntToStr(aComponent.PartCount) + ' F N');
 
+
     // Aliases
     if aComponent.AliasCount > 1 then
     begin
         buf.Clear();
 
         for i:= 0 to aComponent.AliasCount do
-        begin
-            // aliases cannot contain spaces
-            buf := buf + ' ' + StringReplace(aComponent.AliasAsText(i), ' ', '_', [rfReplaceAll]);
-        end;
+            buf := buf + ' ' + fixName(aComponent.AliasAsText(i));
 
         aOut.Add('ALIAS' + buf);
     end;
 
+
     // Fields (parameters in Altium)
+    paramList := TStringList.Create();
+    paramList.Clear();
+
     // Default fields
-    // TODO missing fields
-    processParameter(aComponent.Designator, 0, true, aOut);
+    processParameter(aComponent.Designator, 0, aTemplate, paramList);
 
     // Custom fields
     paramIterator := aComponent.SchIterator_Create();
@@ -142,7 +168,7 @@ begin
 
         while param <> nil do
         begin
-            processParameter(param, i, true, aOut);
+            processParameter(param, i, aTemplate, paramList);
             Inc(i);
             param := paramIterator.NextSchObject();
         end;
@@ -150,6 +176,10 @@ begin
     finally
         aComponent.SchIterator_Destroy(paramIterator);
     end;
+
+    aOut.AddStrings(paramList);
+    paramList.Free();
+
 
     // Convert the graphic symbol
     aOut.Add('DRAW');
@@ -186,8 +216,11 @@ var
   libName       : TDynamicString;
   libOut        : TStringList;
   libOutPath    : TString;
-
+  template      : Boolean;
 begin
+    // Convert library or generate a template for kicadlib-gen
+    template := true;
+
     if SchServer = nil then
         exit;
 
@@ -214,13 +247,13 @@ begin
     // Iterate through components in the library
     schIterator := schLib.SchLibIterator_Create;
     schIterator.AddFilter_ObjectSet(MkSet(eSchComponent));
-
+    // TODO if template, save components to separate files
     try
         component := schIterator.FirstSchObject;
 
         while component <> nil do
         begin
-            processComponent(component, libOut);
+            processComponent(component, template, libOut);
             component := schIterator.NextSchObject;
         end;
 
@@ -232,10 +265,10 @@ begin
     libOut.Add('#');
     libOut.Add('#End Library');
 
-    // TODO path?
     libOutPath := ExtractFileDir(schLib.DocumentName) + '\' + libName + '.lib';
+    libOutPath := StringReplace(libOutPath, '.SchLib', '', rfReplaceAll);
     libOut.SaveToFile(libOutPath);
-    libOut.Free;
+    libOut.Free();
 
     ShowMessage('Saved as ' + libOutPath);
 end;
