@@ -58,6 +58,8 @@ var
     buf         : TDynamicString;
     i, paramIdx : Integer;
 begin
+    value := aParameter.Text;
+
     // Correct default field numbers
     if aParameter.Name = 'Designator' then
     begin
@@ -69,16 +71,15 @@ begin
     else if aParameter.Name = 'Footprint' then
         aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
     else if aParameter.Name = 'HelpURL' then
-        aParamNr := 3
-    else
-        value := aParameter.Text;
+        aParamNr := 3;
 
     if aTemplate = true then
     begin
-        value := '${' + aParameter.Name + '}';
-
         if aParamNr = 2 then
-            value := '${Library Name}:${Footprint Ref}';
+            value := '${Library Name}:${Footprint Ref}'
+        else
+            value := '${' + aParameter.Name + '}';
+
     end;
 
     buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
@@ -87,7 +88,7 @@ begin
         + 'H I L CNN';      // TODO hardcoded justification/orientation/etc.
 
     // Default fields do not store the field name at the end
-    if not aParamNr < 4 then
+    if aParamNr >= 4 then
         buf := buf + ' "' + aParameter.Name + '"';
 
     // Find the right place to insert the parameter
