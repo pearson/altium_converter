@@ -306,4 +306,4 @@ begin
         exit;
 
     processLibrary(true);
-end;|
+end;
