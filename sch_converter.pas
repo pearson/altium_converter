@@ -87,34 +87,55 @@ end;
 
 
 procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
+var
+    rect : ISch_Rectangle;
+    buf : TDynamicString;
 begin
     // puts item name in the reportinfo TStringList container
-    aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
+    //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
 
-    Case AnObjectId Of
-       eDesignator          : Result := 'Designator';
-       eRectangle           : Result := 'Rectangle';
-       eLine                : Result := 'Line';
+    case aObject of
+       ePin:
+       begin
+            //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
+       end;
+
+       eRectangle:
+       begin
+           // TODO unit & convert are not handled
+           //S startx starty endx endy unit convert thickness cc
+           rect := ISch_Rectangle(aObject);
+           buf := 'S' + IntToStr(rect.Location.x) + ' ' + IntToStr(rect.Location.y)
+                      + ' ' + IntToStr(rect.Location.x + rect.Size.x) + ' ' + IntToStr(rect.Size.y)
+                      + ' 0 0 ' + IntToStr(rect.LineWidth);
+
+           if rect.IsSolid() then buf := ' F' else buf := ' N';
+           aOut.Add(buf);
+       end;
+       {eLine                : Result := 'Line';
        eArc                 : Result := 'Arc';
-       eEllipticalArc       : Result := 'EllipticalArc';
        eRoundRectangle      : Result := 'RoundRectangle';
-       eImage               : Result := 'Image';
-       ePie                 : Result := 'Pie';
-       eEllipse             : Result := 'Ellipse';
        ePolygon             : Result := 'Polygon';
        ePolyline            : Result := 'Polyline';
-       eWire                : Result := 'Wire';
-       eBezier              : Result := 'Bezier';
-       eLabel               : Result := 'Annotation / Label';
-       eParameter           : Result := 'Parameter';
-       eParameterSet        : Result := 'ParameterSet';
-       eParameterList       : Result := 'ParameterList';
-       eSymbol              : Result := 'Symbol';
-       ePin                 : Result := 'Pin';
-       eMapDefiner          : Result := 'Map Definer';
-       eImplementationMap   : Result := 'Implementation Map';
-       eImplementation      : Result := 'Implementation';
-       eImplementationsList : Result := 'Implemenations List';
+       }
+
+       // TODO missing
+       //eImage
+       //ePie
+       //eEllipticalArc
+       //eEllipse
+       //eWire
+       //eBezier
+       //eSymbol
+       //eLabel
+       //eParameter
+       //eParameterSet
+       //eParameterList
+       //eDesignator
+       //eMapDefiner
+       //eImplementationMap
+       //eImplementation             // TODO footprint?
+       //eImplementationsList
     end;
 end;
 
@@ -194,7 +215,7 @@ begin
 
         while schObj <> nil do
         begin
-            processObject(schObj, aOut)
+            processObject(schObj, aOut);
             schObj := objIterator.NextSchObject;
         end;
 
