@@ -1,53 +1,34 @@
-{procedure GenerateReport(Report : TStringList);
-var
-    document : IServerdocument;
-begin
-    Report.Insert(0,'Schematic Library Symbol Report');
-    Report.Insert(1,'-------------------------------');
-    Report.SaveToFile('c:\SymbolReport.txt');
-
-    document := Client.Opendocument('Text','c:\SymbolReport.txt');
-    if document <> Nil then
-        Client.Showdocument(document);
-end;}
-{..............................................................................}
-
-{..............................................................................}
-Function ObjectIdToString(AnObjectId : TObjectId) : WideString;
-begin
-    Result := 'Unknown';
-    Case AnObjectId Of
-       eDesignator          : Result := 'Designator';
-       eRectangle           : Result := 'Rectangle';
-       eLine                : Result := 'Line';
-       eArc                 : Result := 'Arc';
-       eEllipticalArc       : Result := 'EllipticalArc';
-       eRoundRectangle      : Result := 'RoundRectangle';
-       eImage               : Result := 'Image';
-       ePie                 : Result := 'Pie';
-       eEllipse             : Result := 'Ellipse';
-       ePolygon             : Result := 'Polygon';
-       ePolyline            : Result := 'Polyline';
-       eWire                : Result := 'Wire';
-       eBezier              : Result := 'Bezier';
-       eLabel               : Result := 'Annotation / Label';
-       eParameter           : Result := 'Parameter';
-       eParameterSet        : Result := 'ParameterSet';
-       eParameterList       : Result := 'ParameterList';
-       eSymbol              : Result := 'Symbol';
-       ePin                 : Result := 'Pin';
-       eMapDefiner          : Result := 'Map Definer';
-       eImplementationMap   : Result := 'Implementation Map';
-       eImplementation      : Result := 'Implementation';
-       eImplementationsList : Result := 'Implemenations List';
-    end;
-end;
-
+{TODO LICENSE}
 
 function fixName(aName : String) : String;
 begin
     // Spaces are not allowed in symbol names in KiCad
     result := StringReplace(aName, ' ', '_', rfReplaceAll);
+end;
+
+
+procedure addLibHeader(aOut : TStringList);
+begin
+    aOut.Add('EESchema-LIBRARY Version 2.3');
+    aOut.Add('#encoding utf-8');
+end;
+
+
+procedure addLibEnd(aOut : TStringList);
+begin
+    aOut.Add('#');
+    aOut.Add('#End Library');
+end;
+
+
+/// Adds missing default fields
+procedure fixParams(aComponent : ISch_Component; aOut : TStringList);
+begin
+    if Copy(aOut[0], 0, 2) <> 'F0' then
+        processParameter(aComponent.Designator, 0, aTemplate, paramList);
+
+    {if Copy(aOut[1], 0, 2) <> 'F1' then}
+        {aOut.Insert(1)}
 end;
 
 
@@ -105,28 +86,36 @@ begin
 end;
 
 
-/// Adds missing default fields
-procedure fixParams(aComponent : ISch_Component; aOut : TStringList);
+procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 begin
-    if Copy(aOut[0], 0, 2) <> 'F0' then
-        processParameter(aComponent.Designator, 0, aTemplate, paramList);
+    // puts item name in the reportinfo TStringList container
+    aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
 
-    {if Copy(aOut[1], 0, 2) <> 'F1' then}
-        {aOut.Insert(1)}
-end;
-
-
-procedure addLibHeader(aOut : TStringList);
-begin
-    aOut.Add('EESchema-LIBRARY Version 2.3');
-    aOut.Add('#encoding utf-8');
-end;
-
-
-procedure addLibEnd(aOut : TStringList);
-begin
-    aOut.Add('#');
-    aOut.Add('#End Library');
+    Case AnObjectId Of
+       eDesignator          : Result := 'Designator';
+       eRectangle           : Result := 'Rectangle';
+       eLine                : Result := 'Line';
+       eArc                 : Result := 'Arc';
+       eEllipticalArc       : Result := 'EllipticalArc';
+       eRoundRectangle      : Result := 'RoundRectangle';
+       eImage               : Result := 'Image';
+       ePie                 : Result := 'Pie';
+       eEllipse             : Result := 'Ellipse';
+       ePolygon             : Result := 'Polygon';
+       ePolyline            : Result := 'Polyline';
+       eWire                : Result := 'Wire';
+       eBezier              : Result := 'Bezier';
+       eLabel               : Result := 'Annotation / Label';
+       eParameter           : Result := 'Parameter';
+       eParameterSet        : Result := 'ParameterSet';
+       eParameterList       : Result := 'ParameterList';
+       eSymbol              : Result := 'Symbol';
+       ePin                 : Result := 'Pin';
+       eMapDefiner          : Result := 'Map Definer';
+       eImplementationMap   : Result := 'Implementation Map';
+       eImplementation      : Result := 'Implementation';
+       eImplementationsList : Result := 'Implemenations List';
+    end;
 end;
 
 
@@ -135,7 +124,7 @@ var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
     paramList                   : TStringList;
-    AnObject                    : ISch_GraphicalObject;
+    schObj                      : ISch_GraphicalObject;
     i                           : Integer;
     name, designator            : TString;
     buf                         : TDynamicString;
@@ -201,20 +190,18 @@ begin
     objIterator := aComponent.SchIterator_Create();
 
     try
-        AnObject := objIterator.FirstSchObject;
+        schObj := objIterator.FirstSchObject;
 
-        while AnObject <> nil do
+        while schObj <> nil do
         begin
-            // puts item name in the reportinfo TStringList container
-            aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
-
-            // look for the next item of a symbol
-            AnObject := objIterator.NextSchObject;
+            processObject(schObj, aOut)
+            schObj := objIterator.NextSchObject;
         end;
 
     finally
         aComponent.SchIterator_Destroy(objIterator);
     end;
+
 
     aOut.Add('ENDDRAW');
     aOut.Add('ENDDEF');
