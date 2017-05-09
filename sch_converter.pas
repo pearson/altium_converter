@@ -88,8 +88,10 @@ end;
 
 procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 var
+    pin : ISch_Pin;
     rect : ISch_Rectangle;
     buf : TDynamicString;
+    i, length : Integer;
 begin
     // puts item name in the reportinfo TStringList container
     //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
@@ -98,6 +100,76 @@ begin
        ePin:
        begin
             //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
+            pin := ISch_Pin(aObject);
+            // TODO pin numbers (ISch_Implementation?)
+            // TODO is pin.length correct? does it depend on the orientation?
+            // TODO is orientation depending on the PinLength field?
+            buf := 'X ' + pin.Designator + ' ' + pin.Name + ' ' + IntToStr(pin.Location.x) + ' ' + IntToStr(pin.Location.y)
+                   + ' ' + Max(pin.PinLength.x, pin.PinLength.y);
+
+            case pin.Orientation of
+                 eRotate0: buf := buf + ' 0';
+                 eRotate90: buf := buf + ' 900';
+                 eRotate180: buf := buf + ' 1800';
+                 eRotate270: buf := buf + ' 2700';
+            end;
+
+            // TODO text label size?
+            // TODO unit convert
+            buf := buf + '50 50 0 0 ';
+
+            case pin.Electrical of
+                eElectricInput:            buf := buf + 'I';
+                eElectricIO:               buf := buf + 'B';
+                eElectricOutput:           buf := buf + 'O';
+                eElectricOpenCollector:    buf := buf + 'C';
+                eElectricPassive:          buf := buf + 'P';
+                eElectricHiZ:              buf := buf + 'T';
+                eElectricOpenEmitter:      buf := buf + 'E';
+                // TODO there is no power input/output distinction
+                eElectricPower:            buf := buf + 'W';
+            end;
+
+            // TODO is it SymbolInner, SymbolOuter, SymbolInnerEdge, SymbolOuterEdge?
+            case pin.Symbol of
+                //eNoSymbol:
+                eDot:                      buf := buf + ' I';
+                //eRightLeftSignalFlow:
+                eClock:                    buf := buf + ' C';
+                eActiveLowInput:           buf := buf + ' L';
+                //eAnalogSignalIn:
+                //eNotLogicConnection:
+                //eShiftRight:
+                //ePostPonedOutput:
+                //eOpenCollector:
+                //eHiz:
+                //eHighCurrent:
+                //ePulse:
+                //eSchmitt:
+                //eDelay:
+                //eGroupLine:
+                //eGroupBin:
+                eActiveLowOutput:          buf := buf + ' V';
+                //ePiSymbol:
+                //eGreaterEqual:
+                //eLessEqual:
+                //eSigma:
+                //eOpenCollectorPullUp:
+                //eOpenEmitter:
+                //eOpenEmitterPullUp:
+                //eDigitalSignalIn:
+                //eAnd:
+                //eInvertor:
+                //eOr:
+                //eXor:
+                //eShiftLeft:
+                //eInputOutput:
+                //eOpenCircuitOutput:
+                //eLeftRightSignalFlow:
+                //eBidirectionalSignalFlow:
+            end;
+            
+            aOut.Add(buf);
        end;
 
        eRectangle:
@@ -105,11 +177,11 @@ begin
            // TODO unit & convert are not handled
            //S startx starty endx endy unit convert thickness cc
            rect := ISch_Rectangle(aObject);
-           buf := 'S' + IntToStr(rect.Location.x) + ' ' + IntToStr(rect.Location.y)
+           buf := 'S ' + IntToStr(rect.Location.x) + ' ' + IntToStr(rect.Location.y)
                       + ' ' + IntToStr(rect.Location.x + rect.Size.x) + ' ' + IntToStr(rect.Size.y)
                       + ' 0 0 ' + IntToStr(rect.LineWidth);
 
-           if rect.IsSolid() then buf := ' F' else buf := ' N';
+           if rect.IsSolid() then buf := buf + ' F' else buf := buf + ' N';
            aOut.Add(buf);
        end;
        {eLine                : Result := 'Line';
