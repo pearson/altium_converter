@@ -97,23 +97,21 @@ begin
     // puts item name in the reportinfo TStringList container
     //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
 
-    case aObject of
+    case aObject.ObjectId of
        ePin:
        begin
             //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
-            pin := ISch_Pin(aObject);
-            // TODO pin numbers (ISch_Implementation?)
-            // TODO is pin.length correct? does it depend on the orientation?
-            // TODO is orientation depending on the PinLength field?
-            buf := 'X ' + pin.Designator + ' ' + pin.Name + ' '
-                   + pin.Location.x + ' ' + pin.Location.y + ' '
-                   + Max(pin.PinLength.x, pin.PinLength.y);
+            pin := aObject;
+            // TODO check pin numbers (ISch_Implementation?)
+            buf := 'X ' + pin.Designator + ' ' + pin.Name
+                   + ' ' + IntToStr(pin.Location.x) + ' ' + IntToStr(pin.Location.y)
+                   + ' ' + IntToStr(pin.PinLength);
 
             case pin.Orientation of
-                 eRotate0: buf := buf + ' 0';
-                 eRotate90: buf := buf + ' 900';
-                 eRotate180: buf := buf + ' 1800';
-                 eRotate270: buf := buf + ' 2700';
+                 eRotate0: buf := buf + ' 0 ';
+                 eRotate90: buf := buf + ' 900 ';
+                 eRotate180: buf := buf + ' 1800 ';
+                 eRotate270: buf := buf + ' 2700 ';
             end;
 
             // TODO text label size?
@@ -133,7 +131,7 @@ begin
             end;
 
             // TODO is it SymbolInner, SymbolOuter, SymbolInnerEdge, SymbolOuterEdge?
-            case pin.Symbol of
+            case pin.Symbol_InnerEdge of
                 //eNoSymbol:
                 eDot:                      buf := buf + ' I';
                 //eRightLeftSignalFlow:
@@ -179,9 +177,10 @@ begin
            // TODO unit & convert are not handled
            //S startx starty endx endy unit convert thickness cc
            rect := ISch_Rectangle(aObject);
-           buf := 'S ' +  rect.Location.x + ' ' + rect.Location.y
-                      + ' ' + rect.Location.x + rect.Size.x + ' ' + rect.Size.y
-                      + ' 0 0 ' + rect.LineWidth;
+           buf := 'S ' +  IntToStr(rect.Location.x) + ' ' + IntToStr(rect.Location.y)
+                      + ' ' + IntToStr(rect.Location.x) + IntToStr(rect.Size.x)
+                      + ' ' + IntToStr(rect.Location.y) + IntToStr(rect.Size.y)
+                      + ' 0 0 ' + IntToStr(rect.LineWidth);
 
            if rect.IsSolid() then buf := buf + ' F' else buf := buf + ' N';
            aOut.Add(buf);
@@ -191,6 +190,11 @@ begin
        begin
             //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
             line := ISch_Line(aObject);
+            // TODO part convert
+            aOut.Add('P 2 0 0 ' + IntToStr(line.LineWidth)
+                     + ' ' + IntToStr(line.Location.x) + ' ' + IntToStr(line.Location.y)
+                     + ' ' + IntToStr(line.Corner.x) + ' ' + IntToStr(line.Corner.y)
+                     + ' N');
        end;
 
        {eArc                 : Result := 'Arc';
