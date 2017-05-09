@@ -1,9 +1,14 @@
 {TODO LICENSE}
+function scale(RelCoord : Real) : Real;
+begin
+    result := RelCoord * 0.00008;
+end;
+
 
 function fixName(aName : String) : String;
 begin
     // Spaces are not allowed in symbol names in KiCad
-    result := StringReplace(aName, ' ', '_', rfReplaceAll);
+    result := StringReplace(aName, ' ', '_', -1);
 end;
 
 
@@ -64,7 +69,7 @@ begin
     end;
 
     buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
-        + IntToStr(aParameter.Location.X) + ' ' + IntToStr(aParameter.Location.Y)
+        + IntToStr(scale(aParameter.Location.x)) + ' ' + IntToStr(scale(aParameter.Location.y))
         + ' 50 '            // TODO hardcoded size
         + 'H I L CNN';      // TODO hardcoded justification/orientation/etc.
 
@@ -91,8 +96,9 @@ var
     pin : ISch_Pin;
     rect : ISch_Rectangle;
     line : ISch_Line;
+    arc : ISch_Arc;
     buf : TDynamicString;
-    i, length : Integer;
+    i, x, y : Integer;
 begin
     // puts item name in the reportinfo TStringList container
     //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
@@ -102,16 +108,40 @@ begin
        begin
             //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
             pin := aObject;
-            // TODO check pin numbers (ISch_Implementation?)
-            buf := 'X ' + pin.Designator + ' ' + pin.Name
-                   + ' ' + IntToStr(pin.Location.x) + ' ' + IntToStr(pin.Location.y)
-                   + ' ' + IntToStr(pin.PinLength);
 
             case pin.Orientation of
-                 eRotate0: buf := buf + ' 0 ';
-                 eRotate90: buf := buf + ' 900 ';
-                 eRotate180: buf := buf + ' 1800 ';
-                 eRotate270: buf := buf + ' 2700 ';
+                 eRotate0:       // left
+                 begin
+                      x := pin.Location.x + pin.PinLength;
+                      y := pin.Location.y;
+                 end;
+                 eRotate90:      // down
+                 begin
+                      x := pin.Location.x;
+                      y := pin.Location.y + pin.PinLength;
+                 end;
+                 eRotate180:     // right
+                 begin
+                      x := pin.Location.x - pin.PinLength;
+                      y := pin.Location.y;
+                 end;
+                 eRotate270:     // up
+                 begin
+                      x := pin.Location.x;
+                      y := pin.Location.y - pin.PinLength;
+                 end;
+            end;
+
+            // TODO check pin numbers (ISch_Implementation?)
+            buf := 'X ' + fixName(pin.Name) + ' ' + fixName(pin.Designator)
+                   + ' ' + IntToStr(scale(x)) + ' ' + IntToStr(scale(y))
+                   + ' ' + IntToStr(scale(pin.PinLength));
+
+            case pin.Orientation of
+                 eRotate0: buf := buf + ' L ';
+                 eRotate90: buf := buf + ' D ';
+                 eRotate180: buf := buf + ' R ';
+                 eRotate270: buf := buf + ' U ';
             end;
 
             // TODO text label size?
@@ -176,29 +206,43 @@ begin
        begin
            // TODO unit & convert are not handled
            //S startx starty endx endy unit convert thickness cc
-           rect := ISch_Rectangle(aObject);
-           buf := 'S ' +  IntToStr(rect.Location.x) + ' ' + IntToStr(rect.Location.y)
-                      + ' ' + IntToStr(rect.Location.x) + IntToStr(rect.Size.x)
-                      + ' ' + IntToStr(rect.Location.y) + IntToStr(rect.Size.y)
-                      + ' 0 0 ' + IntToStr(rect.LineWidth);
+           rect := aObject;
+           buf := 'S ' +  IntToStr(scale(rect.Location.x)) + ' ' + IntToStr(scale(rect.Location.y))
+                      + ' ' + IntToStr(scale(rect.Corner.x)) + ' ' + IntToStr(scale(rect.Corner.y)) +
+                      + ' 0 0 ' + IntToStr(scale(rect.LineWidth));
 
-           if rect.IsSolid() then buf := buf + ' F' else buf := buf + ' N';
+           //if rect.IsSolid() then buf := buf + ' F' else buf := buf + ' N';
+           buf := buf + ' N';
            aOut.Add(buf);
        end;
 
        eLine:            // same as polygon
        begin
             //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
-            line := ISch_Line(aObject);
+            line := aObject;
             // TODO part convert
-            aOut.Add('P 2 0 0 ' + IntToStr(line.LineWidth)
-                     + ' ' + IntToStr(line.Location.x) + ' ' + IntToStr(line.Location.y)
-                     + ' ' + IntToStr(line.Corner.x) + ' ' + IntToStr(line.Corner.y)
+            aOut.Add('P 2 0 0 ' + IntToStr(scale(line.LineWidth))
+                     + ' ' + IntToStr(scale(line.Location.x)) + ' ' + IntToStr(scale(line.Location.y))
+                     + ' ' + IntToStr(scale(line.Corner.x)) + ' ' + IntToStr(scale(line.Corner.y))
                      + ' N');
        end;
 
-       {eArc                 : Result := 'Arc';
-       eRoundRectangle      : Result := 'RoundRectangle';
+       eArc:
+       begin
+            arc := aObject;
+            // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
+
+            aOut.Add('A ' + IntToStr(scale(arc.Location.x)) + ' ' + IntToStr(scale(arc.Location.y)) +
+                     + ' ' + IntToStr(scale(arc.Radius))
+                     + ' ' + IntToStr(arc.StartAngle * 10) + ' ' + IntToStr(arc.EndAngle * 10) +
+                     // TODO part convert
+                     + ' 0 0 ' + IntToStr(scale(arc.LineWidth)) + ' N '
+                     + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.StartAngle / 360 * 2 * PI)))
+                     + ' ' + IntToStr(scale(arc.Location.y + arc.Radius * Sin(arc.StartAngle / 360 * 2 * PI)))
+                     + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.EndAngle / 360 * 2 * PI)))
+                     + ' ' + IntToStr(scale(arc.Location.y + arc.Radius * Sin(arc.EndAngle / 360 * 2 * PI))));
+       end;
+       {eRoundRectangle      : Result := 'RoundRectangle';
        ePolygon             : Result := 'Polygon';
        ePolyline            : Result := 'Polyline';
        }
