@@ -90,6 +90,7 @@ procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 var
     pin : ISch_Pin;
     rect : ISch_Rectangle;
+    line : ISch_Line;
     buf : TDynamicString;
     i, length : Integer;
 begin
@@ -104,8 +105,9 @@ begin
             // TODO pin numbers (ISch_Implementation?)
             // TODO is pin.length correct? does it depend on the orientation?
             // TODO is orientation depending on the PinLength field?
-            buf := 'X ' + pin.Designator + ' ' + pin.Name + ' ' + IntToStr(pin.Location.x) + ' ' + IntToStr(pin.Location.y)
-                   + ' ' + Max(pin.PinLength.x, pin.PinLength.y);
+            buf := 'X ' + pin.Designator + ' ' + pin.Name + ' '
+                   + pin.Location.x + ' ' + pin.Location.y + ' '
+                   + Max(pin.PinLength.x, pin.PinLength.y);
 
             case pin.Orientation of
                  eRotate0: buf := buf + ' 0';
@@ -116,18 +118,18 @@ begin
 
             // TODO text label size?
             // TODO unit convert
-            buf := buf + '50 50 0 0 ';
+            buf := buf + '50 50 0 0';
 
             case pin.Electrical of
-                eElectricInput:            buf := buf + 'I';
-                eElectricIO:               buf := buf + 'B';
-                eElectricOutput:           buf := buf + 'O';
-                eElectricOpenCollector:    buf := buf + 'C';
-                eElectricPassive:          buf := buf + 'P';
-                eElectricHiZ:              buf := buf + 'T';
-                eElectricOpenEmitter:      buf := buf + 'E';
+                eElectricInput:            buf := buf + ' I';
+                eElectricIO:               buf := buf + ' B';
+                eElectricOutput:           buf := buf + ' O';
+                eElectricOpenCollector:    buf := buf + ' C';
+                eElectricPassive:          buf := buf + ' P';
+                eElectricHiZ:              buf := buf + ' T';
+                eElectricOpenEmitter:      buf := buf + ' E';
                 // TODO there is no power input/output distinction
-                eElectricPower:            buf := buf + 'W';
+                eElectricPower:            buf := buf + ' W';
             end;
 
             // TODO is it SymbolInner, SymbolOuter, SymbolInnerEdge, SymbolOuterEdge?
@@ -168,7 +170,7 @@ begin
                 //eLeftRightSignalFlow:
                 //eBidirectionalSignalFlow:
             end;
-            
+
             aOut.Add(buf);
        end;
 
@@ -177,15 +179,21 @@ begin
            // TODO unit & convert are not handled
            //S startx starty endx endy unit convert thickness cc
            rect := ISch_Rectangle(aObject);
-           buf := 'S ' + IntToStr(rect.Location.x) + ' ' + IntToStr(rect.Location.y)
-                      + ' ' + IntToStr(rect.Location.x + rect.Size.x) + ' ' + IntToStr(rect.Size.y)
-                      + ' 0 0 ' + IntToStr(rect.LineWidth);
+           buf := 'S ' +  rect.Location.x + ' ' + rect.Location.y
+                      + ' ' + rect.Location.x + rect.Size.x + ' ' + rect.Size.y
+                      + ' 0 0 ' + rect.LineWidth;
 
            if rect.IsSolid() then buf := buf + ' F' else buf := buf + ' N';
            aOut.Add(buf);
        end;
-       {eLine                : Result := 'Line';
-       eArc                 : Result := 'Arc';
+
+       eLine:            // same as polygon
+       begin
+            //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
+            line := ISch_Line(aObject);
+       end;
+
+       {eArc                 : Result := 'Arc';
        eRoundRectangle      : Result := 'RoundRectangle';
        ePolygon             : Result := 'Polygon';
        ePolyline            : Result := 'Polyline';
@@ -288,7 +296,7 @@ begin
         while schObj <> nil do
         begin
             processObject(schObj, aOut);
-            schObj := objIterator.NextSchObject;
+            schObj := objIterator.NextSchObject();
         end;
 
     finally
