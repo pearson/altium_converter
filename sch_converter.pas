@@ -18,6 +18,12 @@ begin
 end;
 
 
+function locToStr(aLocation : TLocation) : String;
+begin
+    result := IntToStr(scale(aLocation.x)) + ' ' + IntToStr(scale(aLocation.y));
+end;
+
+
 function fixName(aName : String) : String;
 begin
     // Spaces are not allowed in symbol names in KiCad
@@ -57,17 +63,6 @@ begin
 end;
 
 
-{/// Adds missing default fields
-procedure fixParams(aComponent : ISch_Component; aOut : TStringList);
-begin
-    if Copy(aOut[0], 0, 2) <> 'F0' then
-        processParameter(aComponent.Designator, 0, aTemplate, paramList);
-
-    {if Copy(aOut[1], 0, 2) <> 'F1' then}
-        {aOut.Insert(1)
-end;}
-
-
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
     aTemplate : Boolean; aOut : TStringList);
 var
@@ -100,7 +95,7 @@ begin
     end;
 
     buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
-        + IntToStr(scale(aParameter.Location.x)) + ' ' + IntToStr(scale(aParameter.Location.y))
+        + locToStr(aParameter.Location)
         + ' 50 '            // TODO hardcoded size
         + 'H I L CNN';      // TODO hardcoded justification/orientation/etc.
 
@@ -134,18 +129,13 @@ begin
     if aCloseLine then Inc(count);
 
     // TODO part convert
-    buf := 'P ' + IntToStr(count) + ' 0 0 '
-           + IntToStr(convertTSize(aPoly.LineWidth));
+    buf := 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
+                + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth));
 
     for i := 1 to aPoly.VerticesCount do
-    begin
-        buf := buf + ' ' + IntToStr(scale(aPoly.Vertex[i].x))
-                   + ' ' + IntToStr(scale(aPoly.Vertex[i].y));
-    end;
+        buf := buf + ' ' + locToStr(aPoly.Vertex[i]);
 
-    if aCloseLine then
-        buf := buf + ' ' + IntToStr(scale(aPoly.Vertex[1].x))
-                   + ' ' + IntToStr(scale(aPoly.Vertex[1].y));
+    if aCloseLine then buf := buf + ' ' + locToStr(aPoly.Vertex[1]);
 
     if aFilled then
         buf := buf + ' f'
@@ -158,26 +148,24 @@ end;
 
 procedure processPin(aPin : ISch_Pin; aOut : TStringList);
 var
-    x, y        : Integer;
+    pos         : TLocation;
     pinShapeSet : Boolean;
     buf         : TDynamicString;
 begin
     //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
     // Correct the pin position
-    x := aPin.Location.x;
-    y := aPin.Location.y;
+    pos := aPin.Location;
 
     case aPin.Orientation of
-        eRotate0:   x := aPin.Location.x + aPin.PinLength;  // left
-        eRotate90:  y := aPin.Location.y + aPin.PinLength;  // down
-        eRotate180: x := aPin.Location.x - aPin.PinLength;  // right
-        eRotate270: y := aPin.Location.y - aPin.PinLength;  // up
+        eRotate0:   pos.x := aPin.Location.x + aPin.PinLength;  // left
+        eRotate90:  pos.y := aPin.Location.y + aPin.PinLength;  // down
+        eRotate180: pos.x := aPin.Location.x - aPin.PinLength;  // right
+        eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
     buf := 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
-            + ' ' + IntToStr(scale(x)) + ' ' + IntToStr(scale(y))
-            + ' ' + IntToStr(scale(aPin.PinLength));
+            + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength));
 
     case aPin.Orientation of
         eRotate0:   buf := buf + ' L ';
@@ -277,10 +265,10 @@ var
 begin
     //S startx starty endx endy unit convert thickness cc
 
-    // TODO unit & convert are not handled
-    buf := 'S ' +  IntToStr(scale(aRect.Location.x)) + ' ' + IntToStr(scale(aRect.Location.y))
-                + ' ' + IntToStr(scale(aRect.Corner.x)) + ' ' + IntToStr(scale(aRect.Corner.y)) +
-                + ' 0 0 ' + IntToStr(convertTSize(aRect.LineWidth));
+    // TODO convert
+    buf := 'S ' + locToStr(aRect.Location) + ' ' + locToStr(aRect.Corner)
+                + ' ' + IntToStr(aRect.OwnerPartId)
+                + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth));
 
     if aRect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
 
@@ -293,21 +281,19 @@ begin
     //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
     // TODO part convert
-    aOut.Add('P 2 0 0 ' + IntToStr(convertTSize(aLine.aLineWidth))
-                + ' ' + IntToStr(scale(aLine.Location.x)) + ' ' + IntToStr(scale(aLine.Location.y))
-                + ' ' + IntToStr(scale(aLine.Corner.x)) + ' ' + IntToStr(scale(aLine.Corner.y))
-                + ' N');
+    aOut.Add('P 2 ' + IntToStr(aLine.OwnerPartId) + ' ' + IntToStr(convertTSize(aLine.aLineWidth))
+              + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
 
 
 procedure processArc(aArc : ISch_Arc, aOut : TStringList);
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
-    aOut.Add('A ' + IntToStr(scale(aArc.Location.x)) + ' ' + IntToStr(scale(aArc.Location.y)) +
-                + ' ' + IntToStr(scale(aArc.Radius))
-                + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10) +
+    aOut.Add('A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
+                + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
                 // TODO part convert
-                + ' 0 0 ' + IntToStr(convertTSize(aArc.LineWidth)) + ' N '
+                + ' ' + IntToStr(aArc.OwnerPartId) + ' 0 '
+                + IntToStr(convertTSize(aArc.LineWidth)) + ' N '
                 + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle / 360 * 2 * PI)))
                 + ' ' + IntToStr(scale(aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle / 360 * 2 * PI)))
                 + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle / 360 * 2 * PI)))
