@@ -3,9 +3,8 @@ Generate reports
 Limitations:
 
 Schematic symbol conversion:
-- Bezier curves
-- Ellipses & elliptical arcs
+- Ellipses
+- Elliptical arcs
 - Pie charts
 - Images
 - IEEE symbols
-- Graphics

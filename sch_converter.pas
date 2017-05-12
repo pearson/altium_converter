@@ -166,7 +166,7 @@ var
     i, count : Integer;
     buf      : TDynamicString;
 begin
-    //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
+    // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
@@ -195,7 +195,7 @@ var
     pinShapeSet : Boolean;
     buf         : TDynamicString;
 begin
-    //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
+    // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
     // Correct the pin position
     pos := aPin.Location;
@@ -300,7 +300,7 @@ procedure processRectangle(aRect : ISch_Rectangle, aOut : TStringList);
 var
     buf : TDynamicString;
 begin
-    //S startx starty endx endy unit convert thickness cc
+    // S startx starty endx endy unit convert thickness cc
 
     // TODO convert
     buf := 'S ' + locToStr(aRect.Location) + ' ' + locToStr(aRect.Corner)
@@ -315,7 +315,7 @@ end;
 
 procedure processLine(aLine : ISch_Line, aOut : TStringList);
 begin
-    //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
+    // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
     // TODO convert
     aOut.Append('P 2 ' + IntToStr(aLine.OwnerPartId) + ' ' + IntToStr(convertTSize(aLine.aLineWidth))
@@ -341,6 +341,26 @@ end;
 
 procedure processRoundRect(aRoundRect : ISch_RoundRectangle, aOut : TStringList);
 begin
+end;
+
+
+procedure processBezier(aBezier : ISch_Bezier; aOut : TStringList);
+var
+    i, count : Integer;
+    buf      : TDynamicString;
+begin
+    // B count part dmg pen X Y ... fill
+
+    // TODO convert
+    buf := 'B ' + IntToStr(aBezier.VerticesCount) + ' ' + IntToStr(aBezier.OwnerPartId)
+                + ' 0 ' + IntToStr(convertTSize(aBezier.LineWidth));
+
+    for i := 1 to aBezier.VerticesCount do
+        buf := buf + ' ' + locToStr(aBezier.Vertex[i]);
+
+    buf := buf + ' N';
+
+    aOut.Add(buf);
 end;
 
 
@@ -392,12 +412,12 @@ begin
        eRoundRectangle: processRoundRect(aObject, aOut);
        eLabel:          processLabel(aObject, aOut);
        ePie:            processPie(aObject, aOut);
+       eBezier:         processBezier(aObject, aOut);
 
        // not available in KiCad
        //eImage
        //eEllipticalArc
        //eEllipse
-       //eBezier
 
        // types that should not occur in symbols
        //eWire
