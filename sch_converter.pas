@@ -57,15 +57,15 @@ begin
 end;
 
 
-/// Adds missing default fields
+{/// Adds missing default fields
 procedure fixParams(aComponent : ISch_Component; aOut : TStringList);
 begin
     if Copy(aOut[0], 0, 2) <> 'F0' then
         processParameter(aComponent.Designator, 0, aTemplate, paramList);
 
     {if Copy(aOut[1], 0, 2) <> 'F1' then}
-        {aOut.Insert(1)}
-end;
+        {aOut.Insert(1)
+end;}
 
 
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
@@ -128,10 +128,11 @@ var
     i, count : Integer;
     buf : TDynamicString;
 begin
+    //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
+
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
 
-    //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
     // TODO part convert
     buf := 'P ' + IntToStr(count) + ' 0 0 '
            + IntToStr(convertTSize(aPoly.LineWidth));
@@ -270,96 +271,80 @@ begin
 end;
 
 
-procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
+procedure processRectangle(aRect : ISch_Rectangle, aOut : TStringList);
 var
-    pin              : ISch_Pin;
-    rect             : ISch_Rectangle;
-    line             : ISch_Line;
-    arc              : ISch_Arc;
     buf              : TDynamicString;
-    i, x, y          : Integer;
 begin
-    // puts item name in the reportinfo TStringList container
-    //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
+    //S startx starty endx endy unit convert thickness cc
 
+    // TODO unit & convert are not handled
+    buf := 'S ' +  IntToStr(scale(aRect.Location.x)) + ' ' + IntToStr(scale(aRect.Location.y))
+                + ' ' + IntToStr(scale(aRect.Corner.x)) + ' ' + IntToStr(scale(aRect.Corner.y)) +
+                + ' 0 0 ' + IntToStr(convertTSize(aRect.LineWidth));
+
+    if aRect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
+
+    aOut.Add(buf);
+end;
+
+
+procedure processLine(aLine : ISch_Line, aOut : TStringList);
+begin
+    //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
+
+    // TODO part convert
+    aOut.Add('P 2 0 0 ' + IntToStr(convertTSize(aLine.aLineWidth))
+                + ' ' + IntToStr(scale(aLine.Location.x)) + ' ' + IntToStr(scale(aLine.Location.y))
+                + ' ' + IntToStr(scale(aLine.Corner.x)) + ' ' + IntToStr(scale(aLine.Corner.y))
+                + ' N');
+end;
+
+
+procedure processArc(aArc : ISch_Arc, aOut : TStringList);
+begin
+    // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
+    aOut.Add('A ' + IntToStr(scale(aArc.Location.x)) + ' ' + IntToStr(scale(aArc.Location.y)) +
+                + ' ' + IntToStr(scale(aArc.Radius))
+                + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10) +
+                // TODO part convert
+                + ' 0 0 ' + IntToStr(convertTSize(aArc.LineWidth)) + ' N '
+                + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle / 360 * 2 * PI)))
+                + ' ' + IntToStr(scale(aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle / 360 * 2 * PI)))
+                + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle / 360 * 2 * PI)))
+                + ' ' + IntToStr(scale(aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle / 360 * 2 * PI))));
+end;
+
+procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
+begin
     case aObject.ObjectId of
-       ePin: processPin(aObject, aOut);
+       ePin:        processPin(aObject, aOut);
+       eRectangle:  processRectangle(aObject, aOut);
+       eLine:       processLine(aObject, aOut);
+       eArc:        processArc(aObject, aOut);
+       ePolygon:    processPoly(aObject, true, true, aOut);
+       ePolyline:   processPoly(aObject, false, false, aOut);
+       //eRoundRectangle:
+       //eLabel:
+       //ePie:
 
-       eRectangle:
-       begin
-           // TODO unit & convert are not handled
-           //S startx starty endx endy unit convert thickness cc
-           rect := aObject;
-           buf := 'S ' +  IntToStr(scale(rect.Location.x)) + ' ' + IntToStr(scale(rect.Location.y))
-                      + ' ' + IntToStr(scale(rect.Corner.x)) + ' ' + IntToStr(scale(rect.Corner.y)) +
-                      + ' 0 0 ' + IntToStr(convertTSize(rect.LineWidth));
-
-           if rect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
-           aOut.Add(buf);
-       end;
-
-       eLine:            // same as polygon
-       begin
-            //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
-            line := aObject;
-            // TODO part convert
-            aOut.Add('P 2 0 0 ' + IntToStr(convertTSize(line.LineWidth))
-                     + ' ' + IntToStr(scale(line.Location.x)) + ' ' + IntToStr(scale(line.Location.y))
-                     + ' ' + IntToStr(scale(line.Corner.x)) + ' ' + IntToStr(scale(line.Corner.y))
-                     + ' N');
-       end;
-
-       eArc:
-       begin
-            arc := aObject;
-            // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
-            aOut.Add('A ' + IntToStr(scale(arc.Location.x)) + ' ' + IntToStr(scale(arc.Location.y)) +
-                     + ' ' + IntToStr(scale(arc.Radius))
-                     + ' ' + IntToStr(arc.StartAngle * 10) + ' ' + IntToStr(arc.EndAngle * 10) +
-                     // TODO part convert
-                     + ' 0 0 ' + IntToStr(convertTSize(arc.LineWidth)) + ' N '
-                     + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.StartAngle / 360 * 2 * PI)))
-                     + ' ' + IntToStr(scale(arc.Location.y + arc.Radius * Sin(arc.StartAngle / 360 * 2 * PI)))
-                     + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.EndAngle / 360 * 2 * PI)))
-                     + ' ' + IntToStr(scale(arc.Location.y + arc.Radius * Sin(arc.EndAngle / 360 * 2 * PI))));
-       end;
-
-       {eRoundRectangle:
-       begin
-
-       end;}
-
-       ePolygon:
-       begin
-           processPoly(aObject, true, true, aOut);
-       end;
-
-       ePolyline:
-       begin
-           processPoly(aObject, false, false, aOut);
-       end;
-
-       {ePolyline:
-       begin
-
-       end;}
-
-       // TODO missing
+       // not available in KiCad
        //eImage
-       //ePie
        //eEllipticalArc
        //eEllipse
-       //eWire
        //eBezier
+
+       // types that should not occur in symbols
+       //eWire
        //eSymbol
-       //eLabel
+
+       // handled in another way or irrelevant
        //eParameter
        //eParameterSet
        //eParameterList
        //eDesignator
        //eMapDefiner
        //eImplementationMap
-       //eImplementation             // TODO footprint?
+       //eImplementation
        //eImplementationsList
     end;
 end;
@@ -384,7 +369,7 @@ begin
 
     // TODO hardcoded fields
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
-    aOut.Add('DEF ' + name + ' ' + designator + ' 0 15 Y Y '
+    aOut.Add('DEF ' + name + ' ' + designator + ' 0 50 Y Y '
         + IntToStr(aComponent.PartCount) + ' F N');
 
 
@@ -393,7 +378,7 @@ begin
     begin
         buf.Clear();
 
-        for i:= 0 to aComponent.AliasCount do
+        for i:= 0 to aComponent.AliasCount() do
             buf := buf + ' ' + fixName(aComponent.AliasAsText(i));
 
         aOut.Add('ALIAS' + buf);
