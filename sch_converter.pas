@@ -128,7 +128,7 @@ begin
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
 
-    // TODO part convert
+    // TODO convert
     buf := 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
                 + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth));
 
@@ -175,8 +175,8 @@ begin
     end;
 
     // TODO text label size?
-    // TODO unit convert
-    buf := buf + '50 50 0 0';
+    // TODO convert
+    buf := buf + '50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0';
 
     case aPin.Electrical of
         eElectricInput:            buf := buf + ' I';
@@ -280,7 +280,7 @@ procedure processLine(aLine : ISch_Line, aOut : TStringList);
 begin
     //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
-    // TODO part convert
+    // TODO convert
     aOut.Add('P 2 ' + IntToStr(aLine.OwnerPartId) + ' ' + IntToStr(convertTSize(aLine.aLineWidth))
               + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
@@ -291,7 +291,7 @@ begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
     aOut.Add('A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
                 + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
-                // TODO part convert
+                // TODO convert
                 + ' ' + IntToStr(aArc.OwnerPartId) + ' 0 '
                 + IntToStr(convertTSize(aArc.LineWidth)) + ' N '
                 + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle / 360 * 2 * PI)))
