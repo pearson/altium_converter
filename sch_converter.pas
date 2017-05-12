@@ -1,7 +1,7 @@
 {TODO LICENSE}
 function scale(RelCoord : Real) : Real;
 begin
-    result := RelCoord * 0.00008;
+    result := RelCoord * 0.0001;
 end;
 
 
@@ -160,7 +160,6 @@ var
     rect             : ISch_Rectangle;
     line             : ISch_Line;
     arc              : ISch_Arc;
-    poly             : ISch_Polygon;
     buf              : TDynamicString;
     pinShapeSet      : Boolean;
     i, x, y          : Integer;
@@ -295,7 +294,7 @@ begin
            rect := aObject;
            buf := 'S ' +  IntToStr(scale(rect.Location.x)) + ' ' + IntToStr(scale(rect.Location.y))
                       + ' ' + IntToStr(scale(rect.Corner.x)) + ' ' + IntToStr(scale(rect.Corner.y)) +
-                      + ' 0 0 ' + IntToStr(scale(rect.LineWidth));
+                      + ' 0 0 ' + IntToStr(convertTSize(rect.LineWidth));
 
            if rect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
            aOut.Add(buf);
@@ -306,7 +305,7 @@ begin
             //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
             line := aObject;
             // TODO part convert
-            aOut.Add('P 2 0 0 ' + IntToStr(scale(line.LineWidth))
+            aOut.Add('P 2 0 0 ' + IntToStr(convertTSize(line.LineWidth))
                      + ' ' + IntToStr(scale(line.Location.x)) + ' ' + IntToStr(scale(line.Location.y))
                      + ' ' + IntToStr(scale(line.Corner.x)) + ' ' + IntToStr(scale(line.Corner.y))
                      + ' N');
@@ -320,7 +319,7 @@ begin
                      + ' ' + IntToStr(scale(arc.Radius))
                      + ' ' + IntToStr(arc.StartAngle * 10) + ' ' + IntToStr(arc.EndAngle * 10) +
                      // TODO part convert
-                     + ' 0 0 ' + IntToStr(scale(arc.LineWidth)) + ' N '
+                     + ' 0 0 ' + IntToStr(convertTSize(arc.LineWidth)) + ' N '
                      + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.StartAngle / 360 * 2 * PI)))
                      + ' ' + IntToStr(scale(arc.Location.y + arc.Radius * Sin(arc.StartAngle / 360 * 2 * PI)))
                      + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.EndAngle / 360 * 2 * PI)))
