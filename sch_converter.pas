@@ -18,9 +18,48 @@ begin
 end;
 
 
+function rotToStr(aOrientation : TRotationBy90) : String;
+begin
+    case aOrientation of
+        eRotate0:   result := 'L';
+        eRotate90:  result := 'D';
+        eRotate180: result := 'R';
+        eRotate270: result := 'U';
+    end;
+end;
+
+
+function rotToInt(aOrientation : TRotationBy90) : Integer;
+begin
+    case aOrientation of
+        eRotate0:   result := 0;
+        eRotate90:  result := 900;
+        eRotate180: result := 1800;
+        eRotate270: result := 2700;
+    end;
+end;
+
+
+
 function locToStr(aLocation : TLocation) : String;
 begin
     result := IntToStr(scale(aLocation.x)) + ' ' + IntToStr(scale(aLocation.y));
+end;
+
+
+function justToStr(aJustification : TTextJustification) : String;
+begin
+    case aJustification of
+        eJustify_BottomLeft:    result := 'L B';
+        eJustify_BottomCenter:  result := 'C B';
+        eJustify_BottomRight:   result := 'R B';
+        eJustify_CenterLeft:    result := 'L C';
+        eJustify_Center:        result := 'C C';
+        eJustify_CenterRight:   result := 'R C';
+        eJustify_TopLeft:       result := 'L T';
+        eJustify_TopCenter:     result := 'C T';
+        eJustify_TopRight:      result := 'R T';
+    end;
 end;
 
 
@@ -121,7 +160,7 @@ procedure processPoly(aPoly : ISch_Polygon; aFilled : Boolean;
                       aCloseLine : Boolean; aOut : TStringList);
 var
     i, count : Integer;
-    buf : TDynamicString;
+    buf      : TDynamicString;
 begin
     //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
@@ -165,18 +204,12 @@ begin
     end;
 
     buf := 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
-            + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength));
-
-    case aPin.Orientation of
-        eRotate0:   buf := buf + ' L ';
-        eRotate90:  buf := buf + ' D ';
-        eRotate180: buf := buf + ' R ';
-        eRotate270: buf := buf + ' U ';
-    end;
+            + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
+            + ' ' + rotToStr(aPin.Orientation);
 
     // TODO text label size?
     // TODO convert
-    buf := buf + '50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0';
+    buf := buf + ' 50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0';
 
     case aPin.Electrical of
         eElectricInput:            buf := buf + ' I';
@@ -200,7 +233,7 @@ begin
     pinShapeSet := false;
 
     {if not pinShapeSet then begin
-        // Assume we set the pin shape, it will be reverted in the default case handler
+        // Assume the pin shape is set, it will be reverted in the default case handler
         pinShapeSet := true;
         case aPin.Symbol_Inner of
             ePostPonedOutput:
@@ -220,7 +253,7 @@ begin
 
     if not pinShapeSet then
     begin
-        // Assume we set the pin shape, it will be reverted in the default case handler
+        // Assume the pin shape is set, it will be reverted in the default case handler
         pinShapeSet := true;
         case aPin.Symbol_InnerEdge of
             eClock:               buf := buf + ' C';
@@ -230,7 +263,7 @@ begin
 
     if not pinShapeSet then
     begin
-        // Assume we set the pin shape, it will be reverted in the default case handler
+        // Assume the pin shape is set, it will be reverted in the default case handler
         pinShapeSet := true;
         case aPin.Symbol_OuterEdge of
             eDot:                 buf := buf + ' I';
@@ -242,7 +275,7 @@ begin
 
     {if not pinShapeSet then
     begin
-        // Assume we set the pin shape, it will be reverted in the default case handler
+        // Assume the pin shape is set, it will be reverted in the default case handler
         pinShapeSet := true;
         case aPin.Symbol_Outer of
         //eRightLeftSignalFlow:
@@ -261,7 +294,7 @@ end;
 
 procedure processRectangle(aRect : ISch_Rectangle, aOut : TStringList);
 var
-    buf              : TDynamicString;
+    buf : TDynamicString;
 begin
     //S startx starty endx endy unit convert thickness cc
 
@@ -281,7 +314,7 @@ begin
     //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
     // TODO convert
-    aOut.Add('P 2 ' + IntToStr(aLine.OwnerPartId) + ' ' + IntToStr(convertTSize(aLine.aLineWidth))
+    aOut.Append('P 2 ' + IntToStr(aLine.OwnerPartId) + ' ' + IntToStr(convertTSize(aLine.aLineWidth))
               + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
 
@@ -289,7 +322,8 @@ end;
 procedure processArc(aArc : ISch_Arc, aOut : TStringList);
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
-    aOut.Add('A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
+
+    aOut.Append('A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
                 + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
                 // TODO convert
                 + ' ' + IntToStr(aArc.OwnerPartId) + ' 0 '
@@ -300,18 +334,60 @@ begin
                 + ' ' + IntToStr(scale(aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle / 360 * 2 * PI))));
 end;
 
+
+procedure processRoundRect(aRoundRect : ISch_RoundRectangle, aOut : TStringList);
+begin
+end;
+
+
+procedure processLabel(aLabel : ISch_Label, aOut : TStringList);
+var
+    buf : TDynamicString;
+    fontMgr : ISch_FontManager;
+begin
+    // T angle X Y size hidden part dmg text italic bold Halign Valign
+
+    fontMgr := SchServer.FontManager;
+
+    buf := 'T ' + IntToStr(rotToInt(aLabel.Orientation)) + ' ' + locToStr(aLabel.Location)
+                + ' ' + IntToStr(fontMgr.Size(aLabel.FontID) * 5)
+                + ' 0 '         // TODO visible == GraphObj::EnableDraw?
+                + IntToStr(aLabel.OwnerPartId) + ' 0 '
+                + '"' + aLabel.Text + '"';
+
+    if fontMgr.Italic(aLabel.FontID) then      // TODO can it be converted to int directly?
+        buf := buf + ' Italic'
+    else
+        buf := buf + ' Normal';
+
+    if fontMgr.Bold(aLabel.FontID) then      // TODO can it be converted to int directly?
+        buf := buf + ' 1'
+    else
+        buf := buf + ' 0';
+
+    buf := buf + ' ' + justToStr(aLabel.Justification);
+
+    aOut.Append(buf);
+end;
+
+
+procedure processPie(aPie : ISch_Pie, aOut : TStringList);
+begin
+end;
+
+
 procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 begin
     case aObject.ObjectId of
-       ePin:        processPin(aObject, aOut);
-       eRectangle:  processRectangle(aObject, aOut);
-       eLine:       processLine(aObject, aOut);
-       eArc:        processArc(aObject, aOut);
-       ePolygon:    processPoly(aObject, true, true, aOut);
-       ePolyline:   processPoly(aObject, false, false, aOut);
-       //eRoundRectangle:
-       //eLabel:
-       //ePie:
+       ePin:            processPin(aObject, aOut);
+       eRectangle:      processRectangle(aObject, aOut);
+       eLine:           processLine(aObject, aOut);
+       eArc:            processArc(aObject, aOut);
+       ePolygon:        processPoly(aObject, true, true, aOut);
+       ePolyline:       processPoly(aObject, false, false, aOut);
+       eRoundRectangle: processRoundRect(aObject, aOut);
+       eLabel:          processLabel(aObject, aOut);
+       ePie:            processPie(aObject, aOut);
 
        // not available in KiCad
        //eImage
