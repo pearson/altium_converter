@@ -1,4 +1,5 @@
 {TODO LICENSE}
+
 function scale(RelCoord : Real) : Real;
 begin
     result := RelCoord * 0.0001;
@@ -154,6 +155,121 @@ begin
 end;
 
 
+procedure processPin(aPin : ISch_Pin; aOut : TStringList);
+var
+    x, y        : Integer;
+    pinShapeSet : Boolean;
+    buf         : TDynamicString;
+begin
+    //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
+
+    // Correct the pin position
+    x := aPin.Location.x;
+    y := aPin.Location.y;
+
+    case aPin.Orientation of
+        eRotate0:   x := aPin.Location.x + aPin.PinLength;  // left
+        eRotate90:  y := aPin.Location.y + aPin.PinLength;  // down
+        eRotate180: x := aPin.Location.x - aPin.PinLength;  // right
+        eRotate270: y := aPin.Location.y - aPin.PinLength;  // up
+    end;
+
+    buf := 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
+            + ' ' + IntToStr(scale(x)) + ' ' + IntToStr(scale(y))
+            + ' ' + IntToStr(scale(aPin.PinLength));
+
+    case aPin.Orientation of
+        eRotate0:   buf := buf + ' L ';
+        eRotate90:  buf := buf + ' D ';
+        eRotate180: buf := buf + ' R ';
+        eRotate270: buf := buf + ' U ';
+    end;
+
+    // TODO text label size?
+    // TODO unit convert
+    buf := buf + '50 50 0 0';
+
+    case aPin.Electrical of
+        eElectricInput:            buf := buf + ' I';
+        eElectricIO:               buf := buf + ' B';
+        eElectricOutput:           buf := buf + ' O';
+        eElectricOpenCollector:    buf := buf + ' C';
+        eElectricPassive:          buf := buf + ' P';
+        eElectricHiZ:              buf := buf + ' T';
+        eElectricOpenEmitter:      buf := buf + ' E';
+        // There is no power input/output distinction in Altium, so there
+        // is simple heuristics trying to guess the type
+        eElectricPower:
+           if AnsiPos('out', Lowercase(aPin.Name)) > 0 then
+                buf := buf + ' w'
+            else
+                buf := buf + ' W';
+    end;
+
+    // Pin shape
+    // TODO pin shape also depends on the electrical type
+    pinShapeSet := false;
+
+    {if not pinShapeSet then begin
+        // Assume we set the pin shape, it will be reverted in the default case handler
+        pinShapeSet := true;
+        case aPin.Symbol_Inner of
+            ePostPonedOutput:
+            eOpenCollector:
+            eHiz:
+            eHighCurrent:
+            ePulse:
+            eSchmitt:
+            eOpenCollectorPullUp:
+            eOpenEmitter:
+            eOpenEmitterPullUp:
+            eShiftLeft:
+            eOpenCircuitOutput:
+            else pinShapeSet := false;
+        end;
+    end;}
+
+    if not pinShapeSet then
+    begin
+        // Assume we set the pin shape, it will be reverted in the default case handler
+        pinShapeSet := true;
+        case aPin.Symbol_InnerEdge of
+            eClock:               buf := buf + ' C';
+            else                  pinShapeSet := false;
+        end;
+    end;
+
+    if not pinShapeSet then
+    begin
+        // Assume we set the pin shape, it will be reverted in the default case handler
+        pinShapeSet := true;
+        case aPin.Symbol_OuterEdge of
+            eDot:                 buf := buf + ' I';
+            eActiveLowInput:      buf := buf + ' L';
+            eActiveLowOutput:     buf := buf + ' V';
+            else                  pinShapeSet := false;
+        end;
+    end;
+
+    {if not pinShapeSet then
+    begin
+        // Assume we set the pin shape, it will be reverted in the default case handler
+        pinShapeSet := true;
+        case aPin.Symbol_Outer of
+        //eRightLeftSignalFlow:
+        //eAnalogSignalIn:
+        //eNotLogicConnection:
+        //eDigitalSignalIn:
+        //eLeftRightSignalFlow:
+        //eBidirectionalSignalFlow:
+        //else                  pinShapeSet := false;
+        end;
+    end;}
+
+    aOut.Add(buf);
+end;
+
+
 procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 var
     pin              : ISch_Pin;
@@ -161,131 +277,13 @@ var
     line             : ISch_Line;
     arc              : ISch_Arc;
     buf              : TDynamicString;
-    pinShapeSet      : Boolean;
     i, x, y          : Integer;
 begin
     // puts item name in the reportinfo TStringList container
     //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
 
     case aObject.ObjectId of
-       ePin:
-       begin
-            //X name number posx posy length orientation Snum Snom unit convert Etype [shape]
-            pin := aObject;
-
-            case pin.Orientation of
-                 eRotate0:       // left
-                 begin
-                      x := pin.Location.x + pin.PinLength;
-                      y := pin.Location.y;
-                 end;
-                 eRotate90:      // down
-                 begin
-                      x := pin.Location.x;
-                      y := pin.Location.y + pin.PinLength;
-                 end;
-                 eRotate180:     // right
-                 begin
-                      x := pin.Location.x - pin.PinLength;
-                      y := pin.Location.y;
-                 end;
-                 eRotate270:     // up
-                 begin
-                      x := pin.Location.x;
-                      y := pin.Location.y - pin.PinLength;
-                 end;
-            end;
-
-            // TODO check pin numbers (ISch_Implementation?)
-            buf := 'X ' + fixName(pin.Name) + ' ' + fixName(pin.Designator)
-                   + ' ' + IntToStr(scale(x)) + ' ' + IntToStr(scale(y))
-                   + ' ' + IntToStr(scale(pin.PinLength));
-
-            case pin.Orientation of
-                 eRotate0: buf := buf + ' L ';
-                 eRotate90: buf := buf + ' D ';
-                 eRotate180: buf := buf + ' R ';
-                 eRotate270: buf := buf + ' U ';
-            end;
-
-            // TODO text label size?
-            // TODO unit convert
-            buf := buf + '50 50 0 0';
-
-            case pin.Electrical of
-                eElectricInput:            buf := buf + ' I';
-                eElectricIO:               buf := buf + ' B';
-                eElectricOutput:           buf := buf + ' O';
-                eElectricOpenCollector:    buf := buf + ' C';
-                eElectricPassive:          buf := buf + ' P';
-                eElectricHiZ:              buf := buf + ' T';
-                eElectricOpenEmitter:      buf := buf + ' E';
-                // TODO there is no power input/output distinction
-                // TODO add simple heuristics 'if contains out'
-                eElectricPower:            buf := buf + ' W';
-            end;
-
-            // Pin shape
-            // TODO pin shape also depends on the electrical type
-            pinShapeSet := false;
-
-            {
-            if not pinShapSet then
-            case pin.Symbol_Inner of
-                eNoSymbol:
-                ePostPonedOutput:
-                eOpenCollector:
-                eHiz:
-                eHighCurrent:
-                ePulse:
-                eSchmitt:
-                eOpenCollectorPullUp:
-                eOpenEmitter:
-                eOpenEmitterPullUp:
-                eShiftLeft:
-                eOpenCircuitOutput:
-            end;}
-
-            if not pinShapeSet then
-            begin
-                // Assume we set the pin shape, it will be reverted in the default case handler
-                pinShapeSet := true;
-                case pin.Symbol_InnerEdge of
-                    //eNoSymbol:
-                    eClock:               buf := buf + ' C';
-                    else                  pinShapeSet := false;
-                end;
-            end;
-
-            if not pinShapeSet then
-            begin
-                // Assume we set the pin shape, it will be reverted in the default case handler
-                pinShapeSet := true;
-                case pin.Symbol_InnerEdge of
-                    eDot:                 buf := buf + ' I';
-                    eActiveLowInput:      buf := buf + ' L';
-                    eActiveLowOutput:     buf := buf + ' V';
-                    else                  pinShapeSet := false;
-               end;
-            end;
-
-            {if not pinShapeSet then
-            begin
-                // Assume we set the pin shape, it will be reverted in the default case handler
-                pinShapeSet := true;
-                case pin.Symbol_Inner of
-                //eRightLeftSignalFlow:
-                //eAnalogSignalIn:
-                //eNotLogicConnection:
-                //eDigitalSignalIn:
-                //eLeftRightSignalFlow:
-                //eBidirectionalSignalFlow:
-                    else                  pinShapeSet := false;
-               end;
-            end;}
-
-            aOut.Add(buf);
-       end;
+       ePin: processPin(aObject, aOut);
 
        eRectangle:
        begin
