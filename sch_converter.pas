@@ -5,10 +5,40 @@ begin
 end;
 
 
+function convertTSize(aSize : TSize) : Integer;
+begin
+    case aSize of
+        //eSmallest: result := 0;
+        eSmall:    result := 10;
+        eMedium:   result := 20;
+        eLarge:    result := 30;
+        else       result := 0;
+    end;
+end;
+
+
 function fixName(aName : String) : String;
 begin
     // Spaces are not allowed in symbol names in KiCad
     result := StringReplace(aName, ' ', '_', -1);
+end;
+
+
+function fixFileName(aName : String) : String;
+var
+    buf : String;
+    i : Integer;
+    forbiddenChars : String; // typed constants are not supported in DelphiScript
+begin
+    forbiddenChars := '<>:"\\/|?*';
+    buf := fixName(aName);
+
+    for i := 0 to Length(forbiddenChars) - 1 do
+    begin
+        buf := StringReplace(buf, forbiddenChars[i], '', -1);
+    end;
+
+    result := buf
 end;
 
 
@@ -19,7 +49,7 @@ begin
 end;
 
 
-procedure addLibEnd(aOut : TStringList);
+procedure addLibFooter(aOut : TStringList);
 begin
     aOut.Add('#');
     aOut.Add('#End Library');
@@ -91,12 +121,46 @@ begin
 end;
 
 
+procedure processPoly(aPoly : ISch_Polygon; aFilled : Boolean;
+                      aCloseLine : Boolean; aOut : TStringList);
+var
+    i, count : Integer;
+    buf : TDynamicString;
+begin
+    count := aPoly.VerticesCount;
+    if aCloseLine then Inc(count);
+
+    //P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
+    // TODO part convert
+    buf := 'P ' + IntToStr(count) + ' 0 0 '
+           + IntToStr(convertTSize(aPoly.LineWidth));
+
+    for i := 1 to aPoly.VerticesCount do
+    begin
+        buf := buf + ' ' + IntToStr(scale(aPoly.Vertex[i].x))
+                   + ' ' + IntToStr(scale(aPoly.Vertex[i].y));
+    end;
+
+    if aCloseLine then
+        buf := buf + ' ' + IntToStr(scale(aPoly.Vertex[1].x))
+                   + ' ' + IntToStr(scale(aPoly.Vertex[1].y));
+
+    if aFilled then
+        buf := buf + ' f'
+    else
+        buf := buf + ' N';
+
+    aOut.Add(buf);
+end;
+
+
 procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 var
     pin              : ISch_Pin;
     rect             : ISch_Rectangle;
     line             : ISch_Line;
     arc              : ISch_Arc;
+    poly             : ISch_Polygon;
     buf              : TDynamicString;
     pinShapeSet      : Boolean;
     i, x, y          : Integer;
@@ -252,7 +316,6 @@ begin
        begin
             arc := aObject;
             // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
-
             aOut.Add('A ' + IntToStr(scale(arc.Location.x)) + ' ' + IntToStr(scale(arc.Location.y)) +
                      + ' ' + IntToStr(scale(arc.Radius))
                      + ' ' + IntToStr(arc.StartAngle * 10) + ' ' + IntToStr(arc.EndAngle * 10) +
@@ -271,13 +334,18 @@ begin
 
        ePolygon:
        begin
-
+           processPoly(aObject, true, true, aOut);
        end;
 
        ePolyline:
        begin
-
+           processPoly(aObject, false, false, aOut);
        end;
+
+       {ePolyline:
+       begin
+
+       end;}
 
        // TODO missing
        //eImage
@@ -436,8 +504,8 @@ begin
 
             if aTemplate then
             begin
-                addLibEnd(libOut);
-                libOut.SaveToFile(libOutPath + fixName(component.LibReference) + '.lib');
+                addLibFooter(libOut);
+                libOut.SaveToFile(libOutPath + fixFileName(component.LibReference) + '.lib');
             end;
 
             component := schIterator.NextSchObject;
