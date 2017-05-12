@@ -93,12 +93,13 @@ end;
 
 procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
 var
-    pin : ISch_Pin;
-    rect : ISch_Rectangle;
-    line : ISch_Line;
-    arc : ISch_Arc;
-    buf : TDynamicString;
-    i, x, y : Integer;
+    pin              : ISch_Pin;
+    rect             : ISch_Rectangle;
+    line             : ISch_Line;
+    arc              : ISch_Arc;
+    buf              : TDynamicString;
+    pinShapeSet      : Boolean;
+    i, x, y          : Integer;
 begin
     // puts item name in the reportinfo TStringList container
     //aOut.Add(' The symbol has : ' + ObjectIdToString(AnObject.ObjectId));
@@ -157,47 +158,68 @@ begin
                 eElectricHiZ:              buf := buf + ' T';
                 eElectricOpenEmitter:      buf := buf + ' E';
                 // TODO there is no power input/output distinction
+                // TODO add simple heuristics 'if contains out'
                 eElectricPower:            buf := buf + ' W';
             end;
 
-            // TODO is it SymbolInner, SymbolOuter, SymbolInnerEdge, SymbolOuterEdge?
-            case pin.Symbol_InnerEdge of
-                //eNoSymbol:
-                eDot:                      buf := buf + ' I';
+            // Pin shape
+            // TODO pin shape also depends on the electrical type
+            pinShapeSet := false;
+
+            {
+            if not pinShapSet then
+            case pin.Symbol_Inner of
+                eNoSymbol:
+                ePostPonedOutput:
+                eOpenCollector:
+                eHiz:
+                eHighCurrent:
+                ePulse:
+                eSchmitt:
+                eOpenCollectorPullUp:
+                eOpenEmitter:
+                eOpenEmitterPullUp:
+                eShiftLeft:
+                eOpenCircuitOutput:
+            end;}
+
+            if not pinShapeSet then
+            begin
+                // Assume we set the pin shape, it will be reverted in the default case handler
+                pinShapeSet := true;
+                case pin.Symbol_InnerEdge of
+                    //eNoSymbol:
+                    eClock:               buf := buf + ' C';
+                    else                  pinShapeSet := false;
+                end;
+            end;
+
+            if not pinShapeSet then
+            begin
+                // Assume we set the pin shape, it will be reverted in the default case handler
+                pinShapeSet := true;
+                case pin.Symbol_InnerEdge of
+                    eDot:                 buf := buf + ' I';
+                    eActiveLowInput:      buf := buf + ' L';
+                    eActiveLowOutput:     buf := buf + ' V';
+                    else                  pinShapeSet := false;
+               end;
+            end;
+
+            {if not pinShapeSet then
+            begin
+                // Assume we set the pin shape, it will be reverted in the default case handler
+                pinShapeSet := true;
+                case pin.Symbol_Inner of
                 //eRightLeftSignalFlow:
-                eClock:                    buf := buf + ' C';
-                eActiveLowInput:           buf := buf + ' L';
                 //eAnalogSignalIn:
                 //eNotLogicConnection:
-                //eShiftRight:
-                //ePostPonedOutput:
-                //eOpenCollector:
-                //eHiz:
-                //eHighCurrent:
-                //ePulse:
-                //eSchmitt:
-                //eDelay:
-                //eGroupLine:
-                //eGroupBin:
-                eActiveLowOutput:          buf := buf + ' V';
-                //ePiSymbol:
-                //eGreaterEqual:
-                //eLessEqual:
-                //eSigma:
-                //eOpenCollectorPullUp:
-                //eOpenEmitter:
-                //eOpenEmitterPullUp:
                 //eDigitalSignalIn:
-                //eAnd:
-                //eInvertor:
-                //eOr:
-                //eXor:
-                //eShiftLeft:
-                //eInputOutput:
-                //eOpenCircuitOutput:
                 //eLeftRightSignalFlow:
                 //eBidirectionalSignalFlow:
-            end;
+                    else                  pinShapeSet := false;
+               end;
+            end;}
 
             aOut.Add(buf);
        end;
@@ -211,8 +233,7 @@ begin
                       + ' ' + IntToStr(scale(rect.Corner.x)) + ' ' + IntToStr(scale(rect.Corner.y)) +
                       + ' 0 0 ' + IntToStr(scale(rect.LineWidth));
 
-           //if rect.IsSolid() then buf := buf + ' F' else buf := buf + ' N';
-           buf := buf + ' N';
+           if rect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
            aOut.Add(buf);
        end;
 
@@ -242,10 +263,21 @@ begin
                      + ' ' + IntToStr(scale(arc.Location.x + arc.Radius * Cos(arc.EndAngle / 360 * 2 * PI)))
                      + ' ' + IntToStr(scale(arc.Location.y + arc.Radius * Sin(arc.EndAngle / 360 * 2 * PI))));
        end;
-       {eRoundRectangle      : Result := 'RoundRectangle';
-       ePolygon             : Result := 'Polygon';
-       ePolyline            : Result := 'Polyline';
-       }
+
+       {eRoundRectangle:
+       begin
+
+       end;}
+
+       ePolygon:
+       begin
+
+       end;
+
+       ePolyline:
+       begin
+
+       end;
 
        // TODO missing
        //eImage
