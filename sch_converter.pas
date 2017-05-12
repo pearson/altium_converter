@@ -40,10 +40,15 @@ begin
 end;
 
 
-
 function locToStr(aLocation : TLocation) : String;
 begin
     result := IntToStr(scale(aLocation.x)) + ' ' + IntToStr(scale(aLocation.y));
+end;
+
+
+function fontSize(aFontID : TFontID) : Integer;
+begin
+     result := SchServer.FontManager.Size(aFontID) * 5
 end;
 
 
@@ -133,10 +138,9 @@ begin
 
     end;
 
-    buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
-        + locToStr(aParameter.Location)
-        + ' 50 '            // TODO hardcoded size
-        + 'H I L CNN';      // TODO hardcoded justification/orientation/etc.
+    buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" ' + locToStr(aParameter.Location)
+        + ' ' + IntToStr(fontSize(aParameter.FontID))
+        + ' H I L CNN';      // TODO hardcoded justification/orientation/etc.
 
     // Default fields do not store the field name at the end
     if aParamNr >= 4 then
@@ -350,7 +354,7 @@ begin
     fontMgr := SchServer.FontManager;
 
     buf := 'T ' + IntToStr(rotToInt(aLabel.Orientation)) + ' ' + locToStr(aLabel.Location)
-                + ' ' + IntToStr(fontMgr.Size(aLabel.FontID) * 5)
+                + ' ' + IntToStr(fontSize(aLabel.FontID))
                 + ' 0 '         // TODO visible == GraphObj::EnableDraw?
                 + IntToStr(aLabel.OwnerPartId) + ' 0 '
                 + '"' + aLabel.Text + '"';
