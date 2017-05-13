@@ -40,6 +40,22 @@ begin
 end;
 
 
+function arcStartPt(aArc : ISch_Arc) : TLocation;
+begin
+   result := TLocation;
+   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle / 180 * PI);
+   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle / 180 * PI);
+end;
+
+
+function arcEndPt(aArc : ISch_Arc) : TLocation;
+begin
+   result := TLocation;
+   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle / 180 * PI);
+   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle / 180 * PI);
+end;
+
+
 function locToStr(aLocation : TLocation) : String;
 begin
     result := IntToStr(scale(aLocation.x)) + ' ' + IntToStr(scale(aLocation.y));
@@ -95,15 +111,15 @@ end;
 
 procedure addLibHeader(aOut : TStringList);
 begin
-    aOut.Add('EESchema-LIBRARY Version 2.3');
-    aOut.Add('#encoding utf-8');
+    aOut.Append('EESchema-LIBRARY Version 2.3');
+    aOut.Append('#encoding utf-8');
 end;
 
 
 procedure addLibFooter(aOut : TStringList);
 begin
-    aOut.Add('#');
-    aOut.Add('#End Library');
+    aOut.Append('#');
+    aOut.Append('#End Library');
 end;
 
 
@@ -171,7 +187,6 @@ begin
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
 
-    // TODO convert
     buf := 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
                 + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth));
 
@@ -185,7 +200,7 @@ begin
     else
         buf := buf + ' N';
 
-    aOut.Add(buf);
+    aOut.Append(buf);
 end;
 
 
@@ -212,7 +227,6 @@ begin
             + ' ' + rotToStr(aPin.Orientation);
 
     // TODO text label size?
-    // TODO convert
     buf := buf + ' 50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0';
 
     case aPin.Electrical of
@@ -233,7 +247,7 @@ begin
     end;
 
     // Pin shape
-    // TODO pin shape also depends on the electrical type
+    // TODO pin shape also depends on the electrical type?
     pinShapeSet := false;
 
     {if not pinShapeSet then begin
@@ -288,11 +302,11 @@ begin
         //eDigitalSignalIn:
         //eLeftRightSignalFlow:
         //eBidirectionalSignalFlow:
-        //else                  pinShapeSet := false;
+        //else pinShapeSet := false;
         end;
     end;}
 
-    aOut.Add(buf);
+    aOut.Append(buf);
 end;
 
 
@@ -302,14 +316,13 @@ var
 begin
     // S startx starty endx endy unit convert thickness cc
 
-    // TODO convert
     buf := 'S ' + locToStr(aRect.Location) + ' ' + locToStr(aRect.Corner)
                 + ' ' + IntToStr(aRect.OwnerPartId)
                 + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth));
 
     if aRect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
 
-    aOut.Add(buf);
+    aOut.Append(buf);
 end;
 
 
@@ -317,29 +330,31 @@ procedure processLine(aLine : ISch_Line, aOut : TStringList);
 begin
     // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
-    // TODO convert
-    aOut.Append('P 2 ' + IntToStr(aLine.OwnerPartId) + ' ' + IntToStr(convertTSize(aLine.aLineWidth))
+    aOut.Append('P 2 ' + IntToStr(aLine.OwnerPartId) + ' 0 ' + IntToStr(convertTSize(aLine.LineWidth))
               + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
 
 
-procedure processArc(aArc : ISch_Arc, aOut : TStringList);
+procedure processArc(aArc : ISch_Arc; aFilled : Boolean; aOut : TStringList);
+var
+    buf : TDynamicString;
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
-    aOut.Append('A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
+    buf := 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
                 + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
-                // TODO convert
                 + ' ' + IntToStr(aArc.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aArc.LineWidth)) + ' N '
-                + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle / 360 * 2 * PI)))
-                + ' ' + IntToStr(scale(aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle / 360 * 2 * PI)))
-                + ' ' + IntToStr(scale(aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle / 360 * 2 * PI)))
-                + ' ' + IntToStr(scale(aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle / 360 * 2 * PI))));
+                + IntToStr(convertTSize(aArc.LineWidth));
+
+    if aFilled then buf := buf + ' f ' else buf := buf + ' N ';
+
+    buf := buf + locToStr(arcStartPt(aArc)) + ' ' + locToStr(arcEndPt(aArc));
+
+    aOut.Append(buf);
 end;
 
 
-procedure processRoundRect(aRoundRect : ISch_RoundRectangle, aOut : TStringList);
+procedure processRoundRect(aRoundRect : ISch_RoundRectangle; aOut : TStringList);
 begin
 end;
 
@@ -351,7 +366,6 @@ var
 begin
     // B count part dmg pen X Y ... fill
 
-    // TODO convert
     buf := 'B ' + IntToStr(aBezier.VerticesCount) + ' ' + IntToStr(aBezier.OwnerPartId)
                 + ' 0 ' + IntToStr(convertTSize(aBezier.LineWidth));
 
@@ -360,7 +374,7 @@ begin
 
     buf := buf + ' N';
 
-    aOut.Add(buf);
+    aOut.Append(buf);
 end;
 
 
@@ -396,23 +410,42 @@ end;
 
 
 procedure processPie(aPie : ISch_Pie, aOut : TStringList);
+var
+    startPt, endPt : TLocation;
+    buf            : TDynamicString;
 begin
+    // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
+    startPt   := arcStartPt(aPie);
+    endPt     := arcEndPt(aPie);
+
+    // KiCad does not have pies, instead draw an arc and a polyline
+    processArc(aPie, aPie.IsSolid(), aOut);
+
+    buf := 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
+              + IntToStr(convertTSize(aPie.LineWidth))
+              + ' ' + locToStr(startPt)
+              + ' ' + locToStr(aPie.Location)
+              + ' ' + locToStr(endPt);
+
+    if aPie.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
+
+    aOut.Append(buf);
 end;
 
 
-procedure processObject(aObject : ISch_GraphicalObject, aOut : TStringList);
+procedure processObject(aObject : ISch_GraphicalObject; aOut : TStringList);
 begin
     case aObject.ObjectId of
        ePin:            processPin(aObject, aOut);
        eRectangle:      processRectangle(aObject, aOut);
        eLine:           processLine(aObject, aOut);
-       eArc:            processArc(aObject, aOut);
+       eArc:            processArc(aObject, false, aOut);
        ePolygon:        processPoly(aObject, true, true, aOut);
        ePolyline:       processPoly(aObject, false, false, aOut);
        eRoundRectangle: processRoundRect(aObject, aOut);
        eLabel:          processLabel(aObject, aOut);
        ePie:            processPie(aObject, aOut);
-       eBezier:         processBezier(aObject, aOut);
+       //eBezier:         processBezier(aObject, aOut);
 
        // not available in KiCad
        //eImage
@@ -446,16 +479,16 @@ var
     name, designator            : TString;
     buf                         : TDynamicString;
 begin
-    aOut.Add('#');
-    aOut.Add('# ' + aComponent.LibReference);
-    aOut.Add('#');
+    aOut.Append('#');
+    aOut.Append('# ' + aComponent.LibReference);
+    aOut.Append('#');
 
     name := fixName(aComponent.LibReference);
     designator := StringReplace(aComponent.Designator.Text, '?', '', rfReplaceAll);
 
     // TODO hardcoded fields
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
-    aOut.Add('DEF ' + name + ' ' + designator + ' 0 50 Y Y '
+    aOut.Append('DEF ' + name + ' ' + designator + ' 0 50 Y Y '
         + IntToStr(aComponent.PartCount) + ' F N');
 
 
@@ -467,7 +500,7 @@ begin
         for i:= 0 to aComponent.AliasCount() do
             buf := buf + ' ' + fixName(aComponent.AliasAsText(i));
 
-        aOut.Add('ALIAS' + buf);
+        aOut.Append('ALIAS' + buf);
     end;
 
 
@@ -503,7 +536,7 @@ begin
 
 
     // Convert the graphic symbol
-    aOut.Add('DRAW');
+    aOut.Append('DRAW');
     objIterator := aComponent.SchIterator_Create();
 
     try
@@ -520,8 +553,8 @@ begin
     end;
 
 
-    aOut.Add('ENDDRAW');
-    aOut.Add('ENDDEF');
+    aOut.Append('ENDDRAW');
+    aOut.Append('ENDDEF');
 end;
 
 
