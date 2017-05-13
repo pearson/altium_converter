@@ -1,5 +1,15 @@
 {TODO LICENSE}
 
+var
+  logList : TStringList;
+  component : String;
+
+procedure log(aMessage : String);
+begin
+    logList.Append(DateToStr(Date) + ' ' + timeToStr(Date) + ': ' + aMessage);
+end;
+
+
 function scale(RelCoord : Real) : Real;
 begin
     result := RelCoord * 0.0001;
@@ -355,7 +365,70 @@ end;
 
 
 procedure processRoundRect(aRoundRect : ISch_RoundRectangle; aOut : TStringList);
+var
+    startX, endX, startY, endY, radius : Integer;
 begin
+    // KiCad does not have round rectangles, so draw four lines and four arcs
+
+    startX  := Min(aRoundRect.Location.x, aRoundRect.Corner.x);
+    endX    := Max(aRoundRect.Location.x, aRoundRect.Corner.x);
+    startY  := Min(aRoundRect.Location.y, aRoundRect.Corner.y);
+    endY    := Max(aRoundRect.Location.y, aRoundRect.Corner.y);
+    radius  := (aRoundRect.CornerXRadius + aRoundRect.CornerYRadius) / 2;
+
+    if aRoundRect.CornerXRadius <> aRoundRect.CornerYRadius then
+       log(component + ': has rounded rectangle with different X & Y corner radius, not supported');
+
+    if aRoundRect.IsSolid then
+       log(component + ': filled rounded rectangles are converted as stroked ones');
+
+    // left edge
+    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+        + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(startY + radius))
+        + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
+
+    // bottom edge
+    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+        + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY))
+        + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY)) + ' N');
+
+    // right edge
+    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+        + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(startY + radius))
+        + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
+
+    // top edge
+    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+        + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY))
+        + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY)) + ' N');
+
+    // top left corner
+    aOut.Append('A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY - radius))
+                + ' ' + IntToStr(scale(radius)) + ' 900 1800 '
+                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
+                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+
+    // bottom left corner
+    aOut.Append('A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY + radius))
+                + ' ' + IntToStr(scale(radius)) + ' -900 1800 '
+                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
+                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+
+    // top right corner
+    aOut.Append('A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY - radius))
+                + ' ' + IntToStr(scale(radius)) + ' 900 0 '
+                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
+                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+
+    // bottom right corner
+    aOut.Append('A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY + radius))
+                + ' ' + IntToStr(scale(radius)) + ' -900 0 '
+                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
+                + IntToStr(convertTSize(aRoundRect.LineWidth)));
 end;
 
 
@@ -448,13 +521,13 @@ begin
        //eBezier:         processBezier(aObject, aOut);
 
        // not available in KiCad
-       //eImage
-       //eEllipticalArc
-       //eEllipse
+       eImage:          log(component + ': images are not supported');
+       eEllipticalArc:  log(component + ': elliptical arcs are not supported');
+       eEllipse:        log(component + ': ellipses are not supported');
+       eSymbol:         log(component + ': IEEE symbols are not supported');
 
        // types that should not occur in symbols
-       //eWire
-       //eSymbol
+       eWire:           log(component + ': wires should not exist in symbols');
 
        // handled in another way or irrelevant
        //eParameter
@@ -479,11 +552,13 @@ var
     name, designator            : TString;
     buf                         : TDynamicString;
 begin
+     component := aComponent.LibReference;
+
     aOut.Append('#');
-    aOut.Append('# ' + aComponent.LibReference);
+    aOut.Append('# ' + component);
     aOut.Append('#');
 
-    name := fixName(aComponent.LibReference);
+    name := fixName(component);
     designator := StringReplace(aComponent.Designator.Text, '?', '', rfReplaceAll);
 
     // TODO hardcoded fields
@@ -555,6 +630,7 @@ begin
 
     aOut.Append('ENDDRAW');
     aOut.Append('ENDDEF');
+    component := '';
 end;
 
 
@@ -582,6 +658,10 @@ begin
     libName := ExtractFileName(libName);
     libOutPath := ExtractFileDir(schLib.DocumentName) + '\';
     libOut := TStringList.Create();
+    logList := TStringList.Create();
+
+    // TODO date and time
+    log('Converting ' + schLib.DocumentName);
 
     if not aTemplate then
         addLibHeader(libOut);
@@ -619,12 +699,15 @@ begin
     if not aTemplate then
     begin
         addLibHeader(libOut);
-        libOutPath := libOutPath + StringReplace(libName, '.SchLib', '.lib', rfReplaceAll);
-        libOut.SaveToFile(libOutPath);
+        libOut.SaveToFile(libOutPath + StringReplace(libName, '.SchLib', '.lib', rfReplaceAll));
     end;
+
+    log('Converted');
+    logList.SaveToFile(liboutPath + StringReplace(libName, '.SchLib', '.txt', rfReplaceAll));
 
     ShowMessage('Saved in ' + libOutPath);
     libOut.Free();
+    logList.Free();
 end;
 
 
