@@ -1,10 +1,12 @@
 {TODO LICENSE}
 
+uses StrUtils;
+
 var
   logList : TStringList;
   component : String;
 
-procedure log(aMessage : String);
+procedure log(aMessage : TDynamicString);
 begin
     logList.Append(DateToStr(Date) + ' ' + timeToStr(Date) + ': ' + aMessage);
 end;
@@ -28,7 +30,7 @@ begin
 end;
 
 
-function rotToStr(aOrientation : TRotationBy90) : String;
+function rotToStr(aOrientation : TRotationBy90) : TDynamicString;
 begin
     case aOrientation of
         eRotate0:   result := 'L';
@@ -66,7 +68,7 @@ begin
 end;
 
 
-function locToStr(aLocation : TLocation) : String;
+function locToStr(aLocation : TLocation) : TDynamicString;
 begin
     result := IntToStr(scale(aLocation.x)) + ' ' + IntToStr(scale(aLocation.y));
 end;
@@ -78,7 +80,7 @@ begin
 end;
 
 
-function justToStr(aJustification : TTextJustification) : String;
+function justToStr(aJustification : TTextJustification) : TDynamicString;
 begin
     case aJustification of
         eJustify_BottomLeft:    result := 'L B';
@@ -94,18 +96,36 @@ begin
 end;
 
 
-function fixName(aName : String) : String;
+function fixName(aName : TDynamicString) : TDynamicString;
+var
+    i, len : Integer;
 begin
-    // Spaces are not allowed in symbol names in KiCad
-    result := StringReplace(aName, ' ', '_', -1);
+    result := aName;
+
+    for i := 1 to Length(result) do
+    begin
+        // Spaces are not allowed in symbol names in KiCad
+        if result[i] = ' ' then
+            result[i] := '_'
+
+        // basic translation for some characters
+        else if result[i] = '–' then
+            result[i] := '-'
+
+        else if Ord(result[i]) > 255 then
+        begin
+            log(component + ': utf-8 characters are not converted');
+            result[i] := '_';
+        end;
+    end;
 end;
 
 
-function fixFileName(aName : String) : String;
+function fixFileName(aName : TDynamicString) : TDynamicString;
 var
-    buf : String;
+    buf : TDynamicString;
     i : Integer;
-    forbiddenChars : String; // typed constants are not supported in DelphiScript
+    forbiddenChars : TDynamicString; // typed constants are not supported in DelphiScript
 begin
     forbiddenChars := '<>:"\\/|?*';
     buf := fixName(aName);
@@ -136,8 +156,7 @@ end;
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
     aTemplate : Boolean; aOut : TStringList);
 var
-    value       : TString;
-    buf         : TDynamicString;
+    value, buf  : TDynamicString;
     i, paramIdx : Integer;
 begin
     value := aParameter.Text;
@@ -232,7 +251,7 @@ begin
         eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
-    buf := 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
+    buf :='X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
             + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
             + ' ' + rotToStr(aPin.Orientation);
 
@@ -559,7 +578,9 @@ begin
     aOut.Append('#');
 
     name := fixName(component);
-    designator := StringReplace(aComponent.Designator.Text, '?', '', rfReplaceAll);
+
+    // Remove question marks from designator
+    designator := StringReplace(aComponent.Designator.Text, '?', '', -1);
 
     // TODO hardcoded fields
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
