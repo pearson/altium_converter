@@ -588,6 +588,36 @@ begin
 end;
 
 
+procedure processEllipse(aEllipse : ISch_Ellipse);
+begin
+    // For now convert only ellipses that are in fact circles
+    // TODO use Bezier curves to approximate ellipses
+    if aEllipse.Radius = aEllipse.SecondaryRadius then
+    begin
+        // C posx posy radius unit convert thickness cc
+        Write(outFile, 'C ' + locToStr(aEllipse.Location)
+                + ' ' + IntToStr(scale(aEllipse.Radius))
+                + ' ' + IntToStr(aEllipse.OwnerPartId) + ' 0 '
+                + IntToStr(convertTSize(aEllipse.LineWidth)));
+
+        if aEllipse.IsSolid() then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
+    end
+    else
+        log(component + ': ellipses are not supported');
+end;
+
+
+procedure processEllipticalArc(aEllipArc : ISch_EllipticalArc);
+begin
+    // For now convert only elliptical arcs that are in fact regular arcs
+    // TODO use Bezier curves to approximate elliptical arcs
+    if aEllipArc.Radius = aEllipArc.SecondaryRadius then
+        processArc(aEllipArc, false)
+    else
+        log(component + ': elliptical arcs are not supported');
+end;
+
+
 procedure processObject(aObject : ISch_GraphicalObject);
 begin
     case aObject.ObjectId of
@@ -600,12 +630,12 @@ begin
         eRoundRectangle: processRoundRect(aObject);
         eLabel:          processLabel(aObject);
         ePie:            processPie(aObject);
+        eEllipse:        processEllipse(aObject);
+        eEllipticalArc:  processEllipticalArc(aObject);
         //eBezier:         processBezier(aObject);  // TODO uncomment when fixed in KiCad
 
         // not available in KiCad
         eImage:          log(component + ': images are not supported');
-        eEllipticalArc:  log(component + ': elliptical arcs are not supported');
-        eEllipse:        log(component + ': ellipses are not supported');
         eSymbol:         log(component + ': IEEE symbols are not supported');
 
         // types that should not occur in symbols
