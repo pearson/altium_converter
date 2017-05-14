@@ -31,7 +31,7 @@ var
 
 procedure log(aMessage : TDynamicString);
 begin
-    logList.Append(DateToStr(Date) + ' ' + timeToStr(Date) + ': ' + aMessage);
+    logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
 end;
 
 
@@ -294,27 +294,21 @@ procedure processPoly(aPoly : ISch_Polygon; aFilled : Boolean;
                       aCloseLine : Boolean);
 var
     i, count : Integer;
-    buf      : TDynamicString;
 begin
     // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
 
-    buf := 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
-                + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth));
+    Write(outFile, 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
+                + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth)));
 
     for i := 1 to aPoly.VerticesCount do
-        buf := buf + ' ' + locToStr(aPoly.Vertex[i]);
+        Write(outFile, ' ' + locToStr(aPoly.Vertex[i]));
 
-    if aCloseLine then buf := buf + ' ' + locToStr(aPoly.Vertex[1]);
+    if aCloseLine then Write(outFile, ' ' + locToStr(aPoly.Vertex[1]));
 
-    if aFilled then
-        buf := buf + ' f'
-    else
-        buf := buf + ' N';
-
-    WriteLn(outFile, buf);
+    if aFilled then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
 end;
 
 
@@ -322,7 +316,6 @@ procedure processPin(aPin : ISch_Pin);
 var
     pos         : TLocation;
     pinShapeSet : Boolean;
-    buf         : TDynamicString;
 begin
     // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
@@ -336,28 +329,28 @@ begin
         eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
-    buf :='X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
+    Write(outFile, 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
             + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
-            + ' ' + rotToStr(aPin.Orientation);
+            + ' ' + rotToStr(aPin.Orientation));
 
     // TODO text label size?
-    buf := buf + ' 50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0';
+    Write(outFile, ' 50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0');
 
     case aPin.Electrical of
-        eElectricInput:            buf := buf + ' I';
-        eElectricIO:               buf := buf + ' B';
-        eElectricOutput:           buf := buf + ' O';
-        eElectricOpenCollector:    buf := buf + ' C';
-        eElectricPassive:          buf := buf + ' P';
-        eElectricHiZ:              buf := buf + ' T';
-        eElectricOpenEmitter:      buf := buf + ' E';
+        eElectricInput:            Write(outFile, ' I');
+        eElectricIO:               Write(outFile, ' B');
+        eElectricOutput:           Write(outFile, ' O');
+        eElectricOpenCollector:    Write(outFile, ' C');
+        eElectricPassive:          Write(outFile, ' P');
+        eElectricHiZ:              Write(outFile, ' T');
+        eElectricOpenEmitter:      Write(outFile, ' E');
         // There is no power input/output distinction in Altium, so there
         // is simple heuristics trying to guess the type
         eElectricPower:
            if AnsiPos('out', Lowercase(aPin.Name)) > 0 then
-                buf := buf + ' w'
+                Write(outFile, ' w')
             else
-                buf := buf + ' W';
+                Write(outFile, ' W');
     end;
 
     // Pin shape
@@ -388,7 +381,7 @@ begin
         // Assume the pin shape is set, it will be reverted in the default case handler
         pinShapeSet := true;
         case aPin.Symbol_InnerEdge of
-            eClock:               buf := buf + ' C';
+            eClock:               Write(outFile, ' C');
             else                  pinShapeSet := false;
         end;
     end;
@@ -398,9 +391,9 @@ begin
         // Assume the pin shape is set, it will be reverted in the default case handler
         pinShapeSet := true;
         case aPin.Symbol_OuterEdge of
-            eDot:                 buf := buf + ' I';
-            eActiveLowInput:      buf := buf + ' L';
-            eActiveLowOutput:     buf := buf + ' V';
+            eDot:                 Write(outFile, ' I');
+            eActiveLowInput:      Write(outFile, ' L');
+            eActiveLowOutput:     Write(outFile, ' V');
             else                  pinShapeSet := false;
         end;
     end;
@@ -420,23 +413,19 @@ begin
         end;
     end;}
 
-    WriteLn(outFile, buf);
+    WriteLn(outFile, '');
 end;
 
 
 procedure processRectangle(aRect : ISch_Rectangle);
-var
-    buf : TDynamicString;
 begin
     // S startx starty endx endy unit convert thickness cc
 
-    buf := 'S ' + locToStr(aRect.Location) + ' ' + locToStr(aRect.Corner)
+    Write(outFile, 'S ' + locToStr(aRect.Location) + ' ' + locToStr(aRect.Corner)
                 + ' ' + IntToStr(aRect.OwnerPartId)
-                + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth));
+                + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth)));
 
-    if aRect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
-
-    WriteLn(outFile, buf);
+    if aRect.IsSolid() then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
 end;
 
 
@@ -450,21 +439,17 @@ end;
 
 
 procedure processArc(aArc : ISch_Arc; aFilled : Boolean);
-var
-    buf : TDynamicString;
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
-    buf := 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
+    Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
                 + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
                 + ' ' + IntToStr(aArc.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aArc.LineWidth));
+                + IntToStr(convertTSize(aArc.LineWidth)));
 
-    if aFilled then buf := buf + ' f ' else buf := buf + ' N ';
+    if aFilled then Write(outFile, ' f ') else Write(outFile, ' N ');
 
-    buf := buf + locToStr(arcStartPt(aArc)) + ' ' + locToStr(arcEndPt(aArc));
-
-    WriteLn(outFile, buf);
+    WriteLn(outFile, locToStr(arcStartPt(aArc)) + ' ' + locToStr(arcEndPt(aArc)));
 end;
 
 
@@ -539,57 +524,52 @@ end;
 procedure processBezier(aBezier : ISch_Bezier);
 var
     i, count : Integer;
-    buf      : TDynamicString;
 begin
     // B count part dmg pen X Y ... fill
 
-    buf := 'B ' + IntToStr(aBezier.VerticesCount) + ' ' + IntToStr(aBezier.OwnerPartId)
-                + ' 0 ' + IntToStr(convertTSize(aBezier.LineWidth));
+    Write(outFile, 'B ' + IntToStr(aBezier.VerticesCount)
+            + ' ' + IntToStr(aBezier.OwnerPartId)
+            + ' 0 ' + IntToStr(convertTSize(aBezier.LineWidth)));
 
     for i := 1 to aBezier.VerticesCount do
-        buf := buf + ' ' + locToStr(aBezier.Vertex[i]);
+        Write(outFile, ' ' + locToStr(aBezier.Vertex[i]));
 
-    buf := buf + ' N';
-
-    WriteLn(outFile, buf);
+    WriteLn(outFile, ' N');
 end;
 
 
 procedure processLabel(aLabel : ISch_Label);
 var
-    buf : TDynamicString;
     fontMgr : ISch_FontManager;
 begin
     // T angle X Y size hidden part dmg text italic bold Halign Valign
 
     fontMgr := SchServer.FontManager;
 
-    buf := 'T ' + IntToStr(rotToInt90(aLabel.Orientation)) + ' ' + locToStr(aLabel.Location)
-                + ' ' + IntToStr(fontSize(aLabel.FontID))
-                + ' 0 '         // TODO visible == GraphObj::EnableDraw?
-                + IntToStr(aLabel.OwnerPartId) + ' 0 '
-                + '"' + StringReplace(aLabel.Text, '"', '''''', -1) + '"';
+    Write(outFile, 'T ' + IntToStr(rotToInt90(aLabel.Orientation))
+            + ' ' + locToStr(aLabel.Location)
+            + ' ' + IntToStr(fontSize(aLabel.FontID))
+            + ' 0 '         // TODO visible == GraphObj::EnableDraw?
+            + IntToStr(aLabel.OwnerPartId) + ' 0 '
+            + '"' + StringReplace(aLabel.Text, '"', '''''', -1) + '"');
 
-    if fontMgr.Italic(aLabel.FontID) then      // TODO can it be converted to int directly?
-        buf := buf + ' Italic'
+    if fontMgr.Italic(aLabel.FontID) then
+        Write(outFile, ' Italic')
     else
-        buf := buf + ' Normal';
+        Write(outFile, ' Normal');
 
     if fontMgr.Bold(aLabel.FontID) then      // TODO can it be converted to int directly?
-        buf := buf + ' 1'
+        Write(outFile, ' 1')
     else
-        buf := buf + ' 0';
+        Write(outFile, ' 0');
 
-    buf := buf + ' ' + justToStr(aLabel.Justification);
-
-    WriteLn(outFile, buf);
+    WriteLn(outFile, ' ' + justToStr(aLabel.Justification));
 end;
 
 
 procedure processPie(aPie : ISch_Pie);
 var
     startPt, endPt : TLocation;
-    buf            : TDynamicString;
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
     startPt   := arcStartPt(aPie);
@@ -598,50 +578,48 @@ begin
     // KiCad does not have pies, instead draw an arc and a polyline
     processArc(aPie, aPie.IsSolid());
 
-    buf := 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
-              + IntToStr(convertTSize(aPie.LineWidth))
-              + ' ' + locToStr(startPt)
-              + ' ' + locToStr(aPie.Location)
-              + ' ' + locToStr(endPt);
+    Write(outFile, 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
+            + IntToStr(convertTSize(aPie.LineWidth))
+            + ' ' + locToStr(startPt)
+            + ' ' + locToStr(aPie.Location)
+            + ' ' + locToStr(endPt));
 
-    if aPie.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
-
-    WriteLn(outFile, buf);
+    if aPie.IsSolid() then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
 end;
 
 
 procedure processObject(aObject : ISch_GraphicalObject);
 begin
     case aObject.ObjectId of
-       ePin:            processPin(aObject);
-       eRectangle:      processRectangle(aObject);
-       eLine:           processLine(aObject);
-       eArc:            processArc(aObject, false);
-       ePolygon:        processPoly(aObject, true, true);
-       ePolyline:       processPoly(aObject, false, false);
-       eRoundRectangle: processRoundRect(aObject);
-       eLabel:          processLabel(aObject);
-       ePie:            processPie(aObject);
-       //eBezier:         processBezier(aObject);
+        ePin:            processPin(aObject);
+        eRectangle:      processRectangle(aObject);
+        eLine:           processLine(aObject);
+        eArc:            processArc(aObject, false);
+        ePolygon:        processPoly(aObject, true, true);
+        ePolyline:       processPoly(aObject, false, false);
+        eRoundRectangle: processRoundRect(aObject);
+        eLabel:          processLabel(aObject);
+        ePie:            processPie(aObject);
+        //eBezier:         processBezier(aObject);  // TODO uncomment when fixed in KiCad
 
-       // not available in KiCad
-       eImage:          log(component + ': images are not supported');
-       eEllipticalArc:  log(component + ': elliptical arcs are not supported');
-       eEllipse:        log(component + ': ellipses are not supported');
-       eSymbol:         log(component + ': IEEE symbols are not supported');
+        // not available in KiCad
+        eImage:          log(component + ': images are not supported');
+        eEllipticalArc:  log(component + ': elliptical arcs are not supported');
+        eEllipse:        log(component + ': ellipses are not supported');
+        eSymbol:         log(component + ': IEEE symbols are not supported');
 
-       // types that should not occur in symbols
-       eWire:           log(component + ': wires should not exist in symbols');
+        // types that should not occur in symbols
+        eWire:           log(component + ': wires should not exist in symbols');
 
-       // handled in another way or irrelevant
-       //eParameter
-       //eParameterSet
-       //eParameterList
-       //eDesignator
-       //eMapDefiner
-       //eImplementationMap
-       //eImplementation
-       //eImplementationsList
+        // handled in another way or irrelevant
+        //eParameter
+        //eParameterSet
+        //eParameterList
+        //eDesignator
+        //eMapDefiner
+        //eImplementationMap
+        //eImplementation
+        //eImplementationsList
     end;
 end;
 
@@ -654,9 +632,8 @@ var
     schObj                      : ISch_GraphicalObject;
     i                           : Integer;
     name, designator            : TString;
-    buf                         : TDynamicString;
 begin
-     component := aComponent.LibReference;
+    component := aComponent.LibReference;
 
     WriteLn(outFile, '#');
     WriteLn(outFile, '# ' + component);
@@ -676,12 +653,12 @@ begin
     // Aliases
     if aComponent.AliasCount > 1 then
     begin
-        buf.Clear();
+        Write(outFile, 'ALIAS');
 
         for i:= 0 to aComponent.AliasCount() do
-            buf := buf + ' ' + fixName(aComponent.AliasAsText(i));
+            Write(outFile, ' ' + fixName(aComponent.AliasAsText(i)));
 
-        WriteLn(outFile, 'ALIAS' + buf);
+        WriteLn(outFile, '');
     end;
 
 
@@ -802,7 +779,9 @@ begin
             begin
                 addLibFooter(outFile);
                 CloseFile(outFile);
-            end;
+            end
+            else
+                Flush(outFile);
 
             component := schIterator.NextSchObject;
         end;
