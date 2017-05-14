@@ -27,7 +27,7 @@ uses StrUtils;
 var
   logList : TStringList;
   component : String;
-  outFile : File;
+  outFile : TextFile;
 
 procedure log(aMessage : TDynamicString);
 begin
@@ -207,33 +207,30 @@ end;
 
 function fixFileName(aName : TDynamicString) : TDynamicString;
 var
-    buf : TDynamicString;
     i : Integer;
-    forbiddenChars : TDynamicString; // typed constants are not supported in DelphiScript
+const
+    forbiddenChars = '<>:"\\/|?*';
 begin
-    forbiddenChars := '<>:"\\/|?*';
-    buf := fixName(aName);
+    result := aName;
 
     for i := 0 to Length(forbiddenChars) - 1 do
     begin
-        buf := StringReplace(buf, forbiddenChars[i], '', -1);
+        result := StringReplace(result, forbiddenChars[i], '', -1);
     end;
-
-    result := buf
 end;
 
 
-procedure addLibHeader();
+procedure addLibHeader(aFile : TextFile);
 begin
-    WriteLn(outFile, 'EESchema-LIBRARY Version 2.3');
-    WriteLn(outFile, '#encoding utf-8');
+    WriteLn(aFile, 'EESchema-LIBRARY Version 2.3');
+    WriteLn(aFile, '#encoding utf-8');
 end;
 
 
-procedure addLibFooter();
+procedure addLibFooter(aFile : TextFile);
 begin
-    WriteLn(outFile, '#');
-    WriteLn(outFile, '#End Library');
+    WriteLn(aFile, '#');
+    WriteLn(aFile, '#End Library');
 end;
 
 
@@ -780,7 +777,7 @@ begin
     begin
         AssignFile(outFile, libOutPath + fixFileName(libName) + '.lib');
         Rewrite(outFile);
-        addLibHeader();
+        addLibHeader(outFile);
     end;
 
     // Iterate through components in the library
@@ -796,14 +793,14 @@ begin
             begin
                 AssignFile(outFile, libOutPath + fixFileName(component.LibReference) + '.lib');
                 Rewrite(outFile);
-                addLibHeader();
+                addLibHeader(outFile);
             end;
 
             processComponent(component, aTemplate);
 
             if aTemplate then
             begin
-                addLibFooter();
+                addLibFooter(outFile);
                 CloseFile(outFile);
             end;
 
@@ -816,7 +813,7 @@ begin
 
     if not aTemplate then
     begin
-        addLibFooter();
+        addLibFooter(outFile);
         CloseFile(outFile);
     end;
 

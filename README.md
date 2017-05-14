@@ -1,12 +1,13 @@
 TODO:
-- Add missing fields
+- Add missing fields (Footprint, HelpURL, etc.)
 - Progress bar
-- Process text fields (convert non-ASCII characters, escape quotes)
 - =Device field?
 - Hide pins if none of the pins is set as visible
 - Select fill color (dark/light)
 - Bezier curves to emulate ellipse/elliptical arcs
-- Write directly to file?
+- Model assignment
+- TODOs in the code
+
 
 Limitations:
 
