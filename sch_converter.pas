@@ -52,6 +52,17 @@ begin
 end;
 
 
+function rotToInt90(aOrientation : TRotationBy90) : Integer;
+begin
+    case aOrientation of
+        eRotate0:   result := 0;
+        eRotate90:  result := 900;
+        eRotate180: result := 0;
+        eRotate270: result := 900;
+    end;
+end;
+
+
 function arcStartPt(aArc : ISch_Arc) : TLocation;
 begin
    result := TLocation;
@@ -98,15 +109,36 @@ end;
 
 function fixName(aName : TDynamicString) : TDynamicString;
 var
-    i, len : Integer;
+    i, len  : Integer;
+    overbar : Boolean;
 begin
     result := aName;
 
-    for i := 1 to Length(result) do
+    len := Length(result);
+    overbar := false;
+    i := 1;
+
+    while i <= len do
+    //for i := 1 to len do
     begin
         // Spaces are not allowed in symbol names in KiCad
         if result[i] = ' ' then
             result[i] := '_'
+
+        // In KiCad tilda toggles overbar, so we need another one to escape
+        else if result[i] = '~' then
+        begin
+            Insert('~', result, i);
+            Inc(len);
+            Inc(i);
+        end
+
+        else if result[i] = '\' then
+        begin
+            Delete(result, i, 1);
+            Dec(len);
+            Dec(i);
+        end
 
         // basic translation for some characters
         else if result[i] = '–' then
@@ -117,6 +149,42 @@ begin
             log(component + ': utf-8 characters are not converted');
             result[i] := '_';
         end;
+
+
+        // Handle overbars
+        if i < len then
+        begin
+            // Detect overbar start
+            if not overbar and (result[i + 1] = '\') then
+            begin
+                // Enable overbar
+                overbar := true;
+                result[i + 1] := result[i];
+                result[i] := '~';
+                Inc(i);   // this character has been already processed
+            end
+
+            else if overbar then
+            begin
+                if result[i + 1] <> '\' then
+                begin
+                    // Disable overbar
+                    overbar := false;
+                    Insert('~', result, i + 1);
+                    Inc(len);
+                    Inc(i);
+                end
+                else
+                begin
+                    // Overbar continues, just remove the backslash
+                    Delete(result, i + 1, 1);
+                    Dec(len);
+                end
+            end;
+        end;
+
+
+        Inc(i);
     end;
 end;
 
@@ -479,7 +547,7 @@ begin
 
     fontMgr := SchServer.FontManager;
 
-    buf := 'T ' + IntToStr(rotToInt(aLabel.Orientation)) + ' ' + locToStr(aLabel.Location)
+    buf := 'T ' + IntToStr(rotToInt90(aLabel.Orientation)) + ' ' + locToStr(aLabel.Location)
                 + ' ' + IntToStr(fontSize(aLabel.FontID))
                 + ' 0 '         // TODO visible == GraphObj::EnableDraw?
                 + IntToStr(aLabel.OwnerPartId) + ' 0 '
