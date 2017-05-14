@@ -53,9 +53,9 @@ begin
 end;
 
 
-function rotToStr(aOrientation : TRotationBy90) : TDynamicString;
+function rotToStr(aRotation : TRotationBy90) : TDynamicString;
 begin
-    case aOrientation of
+    case aRotation of
         eRotate0:   result := 'L';
         eRotate90:  result := 'D';
         eRotate180: result := 'R';
@@ -64,9 +64,9 @@ begin
 end;
 
 
-function rotToInt(aOrientation : TRotationBy90) : Integer;
+function rotToInt(aRotation : TRotationBy90) : Integer;
 begin
-    case aOrientation of
+    case aRotation of
         eRotate0:   result := 0;
         eRotate90:  result := 900;
         eRotate180: result := 1800;
@@ -75,13 +75,24 @@ begin
 end;
 
 
-function rotToInt90(aOrientation : TRotationBy90) : Integer;
+function rotToInt90(aRotation : TRotationBy90) : Integer;
 begin
-    case aOrientation of
+    case aRotation of
         eRotate0:   result := 0;
         eRotate90:  result := 900;
         eRotate180: result := 0;
         eRotate270: result := 900;
+    end;
+end;
+
+
+function rotToOrient(aRotation : TRotationBy90) : String;
+begin
+    case aRotation of
+        eRotate0:   result := 'H';
+        eRotate90:  result := 'V';
+        eRotate180: result := 'H';
+        eRotate270: result := 'V';
     end;
 end;
 
@@ -248,7 +259,7 @@ begin
         aParamNr := 0;
         value := StringReplace(aParameter.Text, '?', '', -1);
     end
-    else if aParameter.Name = 'Value' then
+    else if {(aParameter.Name = 'Value') or} (aParameter.Text = '=Device') then
         aParamNr := 1
     else if aParameter.Name = 'Footprint' then
         aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
@@ -268,9 +279,16 @@ begin
         value := StringReplace(value, '"', '\"', -1);
     end;
 
-    buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" ' + locToStr(aParameter.Location)
+    buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
+        + locToStr(aParameter.Location)
         + ' ' + IntToStr(fontSize(aParameter.FontID))
-        + ' H I L CNN';      // TODO hardcoded justification/orientation/etc.
+        + ' ' + rotToOrient(aParameter.Orientation);
+
+    // Visibility
+    // TODO find the right property in Altium
+    if aParamNr <= 1 then buf := buf + ' V' else buf := buf + ' I';
+
+    buf := buf + ' L CNN';      // TODO hardcoded justification/orientation/etc.
 
     // Default fields do not store the field name at the end
     if aParamNr >= 4 then
