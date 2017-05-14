@@ -27,6 +27,7 @@ uses StrUtils;
 var
   logList : TStringList;
   component : String;
+  outFile : File;
 
 procedure log(aMessage : TDynamicString);
 begin
@@ -155,21 +156,14 @@ begin
             Inc(i);
         end
 
+        // Altium does not display backslashes. It is a modifier to enable
+        // overbar for the previous character, but apparently there is no way
+        // to escape this character
         else if result[i] = '\' then
         begin
             Delete(result, i, 1);
             Dec(len);
             Dec(i);
-        end
-
-        // basic translation for some characters
-        else if result[i] = '–' then
-            result[i] := '-'
-
-        else if Ord(result[i]) > 255 then
-        begin
-            log(component + ': utf-8 characters are not converted');
-            result[i] := '_';
         end;
 
 
@@ -229,22 +223,22 @@ begin
 end;
 
 
-procedure addLibHeader(aOut : TStringList);
+procedure addLibHeader();
 begin
-    aOut.Append('EESchema-LIBRARY Version 2.3');
-    aOut.Append('#encoding utf-8');
+    WriteLn(outFile, 'EESchema-LIBRARY Version 2.3');
+    WriteLn(outFile, '#encoding utf-8');
 end;
 
 
-procedure addLibFooter(aOut : TStringList);
+procedure addLibFooter();
 begin
-    aOut.Append('#');
-    aOut.Append('#End Library');
+    WriteLn(outFile, '#');
+    WriteLn(outFile, '#End Library');
 end;
 
 
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
-    aTemplate : Boolean; aOut : TStringList);
+    aTemplate : Boolean; aParams : TStringList);
 var
     value, buf  : TDynamicString;
     i, paramIdx : Integer;
@@ -255,7 +249,7 @@ begin
     if aParameter.Name = 'Designator' then
     begin
         aParamNr := 0;
-        value := StringReplace(aParameter.Text, '?', '', rfReplaceAll);
+        value := StringReplace(aParameter.Text, '?', '', -1);
     end
     else if aParameter.Name = 'Value' then
         aParamNr := 1
@@ -264,13 +258,17 @@ begin
     else if aParameter.Name = 'HelpURL' then
         aParamNr := 3;
 
-    if aTemplate = true then
+    if aTemplate then
     begin
         if aParamNr = 2 then
             value := '${Library Name}:${Footprint Ref}'
         else
             value := '${' + aParameter.Name + '}';
-
+    end
+    else
+    begin
+        // Escape quotes
+        value := StringReplace(value, '"', '\"', -1);
     end;
 
     buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" ' + locToStr(aParameter.Location)
@@ -282,21 +280,21 @@ begin
         buf := buf + ' "' + aParameter.Name + '"';
 
     // Find the right place to insert the parameter
-    for i := 0 to aOut.Count() - 1 do
+    for i := 0 to aParams.Count() - 1 do
     begin
         // Extract the field number for i-th string in the output list
-        paramIdx := StrToInt(Copy(aOut[i], 2, Pos(' ', aOut[i]) - 2));
+        paramIdx := StrToInt(Copy(aParams[i], 2, Pos(' ', aParams[i]) - 2));
 
         if paramIdx > aParamNr then
             break;
     end;
 
-    aOut.Insert(i, buf);
+    aParams.Insert(i, buf);
 end;
 
 
 procedure processPoly(aPoly : ISch_Polygon; aFilled : Boolean;
-                      aCloseLine : Boolean; aOut : TStringList);
+                      aCloseLine : Boolean);
 var
     i, count : Integer;
     buf      : TDynamicString;
@@ -319,11 +317,11 @@ begin
     else
         buf := buf + ' N';
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processPin(aPin : ISch_Pin; aOut : TStringList);
+procedure processPin(aPin : ISch_Pin);
 var
     pos         : TLocation;
     pinShapeSet : Boolean;
@@ -375,7 +373,7 @@ begin
         case aPin.Symbol_Inner of
             ePostPonedOutput:
             eOpenCollector:
-            eHiz:
+            eHiZ:
             eHighCurrent:
             ePulse:
             eSchmitt:
@@ -425,11 +423,11 @@ begin
         end;
     end;}
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processRectangle(aRect : ISch_Rectangle, aOut : TStringList);
+procedure processRectangle(aRect : ISch_Rectangle);
 var
     buf : TDynamicString;
 begin
@@ -441,20 +439,20 @@ begin
 
     if aRect.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processLine(aLine : ISch_Line, aOut : TStringList);
+procedure processLine(aLine : ISch_Line);
 begin
     // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
-    aOut.Append('P 2 ' + IntToStr(aLine.OwnerPartId) + ' 0 ' + IntToStr(convertTSize(aLine.LineWidth))
+    WriteLn(outFile, 'P 2 ' + IntToStr(aLine.OwnerPartId) + ' 0 ' + IntToStr(convertTSize(aLine.LineWidth))
               + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
 
 
-procedure processArc(aArc : ISch_Arc; aFilled : Boolean; aOut : TStringList);
+procedure processArc(aArc : ISch_Arc; aFilled : Boolean);
 var
     buf : TDynamicString;
 begin
@@ -469,11 +467,11 @@ begin
 
     buf := buf + locToStr(arcStartPt(aArc)) + ' ' + locToStr(arcEndPt(aArc));
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processRoundRect(aRoundRect : ISch_RoundRectangle; aOut : TStringList);
+procedure processRoundRect(aRoundRect : ISch_RoundRectangle);
 var
     startX, endX, startY, endY, radius : Integer;
 begin
@@ -492,56 +490,56 @@ begin
        log(component + ': filled rounded rectangles are converted as stroked ones');
 
     // left edge
-    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
         + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
         + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(startY + radius))
         + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
 
     // bottom edge
-    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
         + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
         + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY))
         + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY)) + ' N');
 
     // right edge
-    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
         + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
         + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(startY + radius))
         + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
 
     // top edge
-    aOut.Append('P 2 ' + IntToStr(aRoundRect.OwnerPartId)
+    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
         + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
         + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY))
         + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY)) + ' N');
 
     // top left corner
-    aOut.Append('A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY - radius))
+    WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY - radius))
                 + ' ' + IntToStr(scale(radius)) + ' 900 1800 '
                 + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
                 + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom left corner
-    aOut.Append('A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY + radius))
+    WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY + radius))
                 + ' ' + IntToStr(scale(radius)) + ' -900 1800 '
                 + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
                 + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // top right corner
-    aOut.Append('A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY - radius))
+    WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY - radius))
                 + ' ' + IntToStr(scale(radius)) + ' 900 0 '
                 + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
                 + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom right corner
-    aOut.Append('A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY + radius))
+    WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY + radius))
                 + ' ' + IntToStr(scale(radius)) + ' -900 0 '
                 + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
                 + IntToStr(convertTSize(aRoundRect.LineWidth)));
 end;
 
 
-procedure processBezier(aBezier : ISch_Bezier; aOut : TStringList);
+procedure processBezier(aBezier : ISch_Bezier);
 var
     i, count : Integer;
     buf      : TDynamicString;
@@ -556,11 +554,11 @@ begin
 
     buf := buf + ' N';
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processLabel(aLabel : ISch_Label, aOut : TStringList);
+procedure processLabel(aLabel : ISch_Label);
 var
     buf : TDynamicString;
     fontMgr : ISch_FontManager;
@@ -573,7 +571,7 @@ begin
                 + ' ' + IntToStr(fontSize(aLabel.FontID))
                 + ' 0 '         // TODO visible == GraphObj::EnableDraw?
                 + IntToStr(aLabel.OwnerPartId) + ' 0 '
-                + '"' + aLabel.Text + '"';
+                + '"' + StringReplace(aLabel.Text, '"', '''''', -1) + '"';
 
     if fontMgr.Italic(aLabel.FontID) then      // TODO can it be converted to int directly?
         buf := buf + ' Italic'
@@ -587,11 +585,11 @@ begin
 
     buf := buf + ' ' + justToStr(aLabel.Justification);
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processPie(aPie : ISch_Pie, aOut : TStringList);
+procedure processPie(aPie : ISch_Pie);
 var
     startPt, endPt : TLocation;
     buf            : TDynamicString;
@@ -601,7 +599,7 @@ begin
     endPt     := arcEndPt(aPie);
 
     // KiCad does not have pies, instead draw an arc and a polyline
-    processArc(aPie, aPie.IsSolid(), aOut);
+    processArc(aPie, aPie.IsSolid());
 
     buf := 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
               + IntToStr(convertTSize(aPie.LineWidth))
@@ -611,23 +609,23 @@ begin
 
     if aPie.IsSolid() then buf := buf + ' f' else buf := buf + ' N';
 
-    aOut.Append(buf);
+    WriteLn(outFile, buf);
 end;
 
 
-procedure processObject(aObject : ISch_GraphicalObject; aOut : TStringList);
+procedure processObject(aObject : ISch_GraphicalObject);
 begin
     case aObject.ObjectId of
-       ePin:            processPin(aObject, aOut);
-       eRectangle:      processRectangle(aObject, aOut);
-       eLine:           processLine(aObject, aOut);
-       eArc:            processArc(aObject, false, aOut);
-       ePolygon:        processPoly(aObject, true, true, aOut);
-       ePolyline:       processPoly(aObject, false, false, aOut);
-       eRoundRectangle: processRoundRect(aObject, aOut);
-       eLabel:          processLabel(aObject, aOut);
-       ePie:            processPie(aObject, aOut);
-       //eBezier:         processBezier(aObject, aOut);
+       ePin:            processPin(aObject);
+       eRectangle:      processRectangle(aObject);
+       eLine:           processLine(aObject);
+       eArc:            processArc(aObject, false);
+       ePolygon:        processPoly(aObject, true, true);
+       ePolyline:       processPoly(aObject, false, false);
+       eRoundRectangle: processRoundRect(aObject);
+       eLabel:          processLabel(aObject);
+       ePie:            processPie(aObject);
+       //eBezier:         processBezier(aObject);
 
        // not available in KiCad
        eImage:          log(component + ': images are not supported');
@@ -651,7 +649,7 @@ begin
 end;
 
 
-procedure processComponent(aComponent : ISch_Component; aTemplate : Boolean; aOut : TStringList);
+procedure processComponent(aComponent : ISch_Component; aTemplate : Boolean);
 var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
@@ -663,18 +661,18 @@ var
 begin
      component := aComponent.LibReference;
 
-    aOut.Append('#');
-    aOut.Append('# ' + component);
-    aOut.Append('#');
+    WriteLn(outFile, '#');
+    WriteLn(outFile, '# ' + component);
+    WriteLn(outFile, '#');
 
     name := fixName(component);
 
     // Remove question marks from designator
-    designator := StringReplace(aComponent.Designator.Text, '?', '', -1);
+    designator := fixName(StringReplace(aComponent.Designator.Text, '?', '', -1));
 
     // TODO hardcoded fields
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
-    aOut.Append('DEF ' + name + ' ' + designator + ' 0 50 Y Y '
+    WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 50 Y Y '
         + IntToStr(aComponent.PartCount) + ' F N');
 
 
@@ -686,7 +684,7 @@ begin
         for i:= 0 to aComponent.AliasCount() do
             buf := buf + ' ' + fixName(aComponent.AliasAsText(i));
 
-        aOut.Append('ALIAS' + buf);
+        WriteLn(outFile, 'ALIAS' + buf);
     end;
 
 
@@ -717,12 +715,14 @@ begin
         aComponent.SchIterator_Destroy(paramIterator);
     end;
 
-    aOut.AddStrings(paramList);
+    for i := 0 to paramList.Count() - 1 do
+        WriteLn(outFile, paramList[i]);
+
     paramList.Free();
 
 
     // Convert the graphic symbol
-    aOut.Append('DRAW');
+    WriteLn(outFile, 'DRAW');
     objIterator := aComponent.SchIterator_Create();
 
     try
@@ -730,7 +730,7 @@ begin
 
         while schObj <> nil do
         begin
-            processObject(schObj, aOut);
+            processObject(schObj);
             schObj := objIterator.NextSchObject();
         end;
 
@@ -739,8 +739,8 @@ begin
     end;
 
 
-    aOut.Append('ENDDRAW');
-    aOut.Append('ENDDEF');
+    WriteLn(outFile, 'ENDDRAW');
+    WriteLn(outFile, 'ENDDEF');
     component := '';
 end;
 
@@ -752,8 +752,8 @@ var
   schIterator   : ISch_Iterator;
 
   libName       : TDynamicString;
-  libOut        : TStringList;
   libOutPath    : TString;
+
 begin
     if UpperCase(Client.CurrentView.OwnerDocument.Kind) <> 'SCHLIB' then
     begin
@@ -765,17 +765,23 @@ begin
     if schLib = nil then
         exit;
 
+    // Set encoding to UTF-8
+    // https://msdn.microsoft.com/en-us/library/windows/desktop/dd317756(v=vs.85).aspx
+    SetMultiByteConversionCodePage(65001);
+
     libName := schLib.DocumentName;
-    libName := ExtractFileName(libName);
+    libName := StringReplace(ExtractFileName(libName), '.SchLib', '', -1);
     libOutPath := ExtractFileDir(schLib.DocumentName) + '\';
-    libOut := TStringList.Create();
     logList := TStringList.Create();
 
-    // TODO date and time
     log('Converting ' + schLib.DocumentName);
 
     if not aTemplate then
-        addLibHeader(libOut);
+    begin
+        AssignFile(outFile, libOutPath + fixFileName(libName) + '.lib');
+        Rewrite(outFile);
+        addLibHeader();
+    end;
 
     // Iterate through components in the library
     schIterator := schLib.SchLibIterator_Create;
@@ -788,16 +794,17 @@ begin
         begin
             if aTemplate then
             begin
-                libOut.Clear();
-                addLibHeader(libOut);
+                AssignFile(outFile, libOutPath + fixFileName(component.LibReference) + '.lib');
+                Rewrite(outFile);
+                addLibHeader();
             end;
 
-            processComponent(component, aTemplate, libOut);
+            processComponent(component, aTemplate);
 
             if aTemplate then
             begin
-                addLibFooter(libOut);
-                libOut.SaveToFile(libOutPath + fixFileName(component.LibReference) + '.lib');
+                addLibFooter();
+                CloseFile(outFile);
             end;
 
             component := schIterator.NextSchObject;
@@ -809,16 +816,15 @@ begin
 
     if not aTemplate then
     begin
-        addLibHeader(libOut);
-        libOut.SaveToFile(libOutPath + StringReplace(libName, '.SchLib', '.lib', rfReplaceAll));
+        addLibFooter();
+        CloseFile(outFile);
     end;
 
     log('Converted');
-    logList.SaveToFile(liboutPath + StringReplace(libName, '.SchLib', '.txt', rfReplaceAll));
+    logList.SaveToFile(libOutPath + fixFileName(libName) + '.txt');
+    logList.Free();
 
     ShowMessage('Saved in ' + libOutPath);
-    libOut.Free();
-    logList.Free();
 end;
 
 
