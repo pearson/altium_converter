@@ -62,7 +62,7 @@ begin
                 + ((aColor shr 8) and $FF)
                 + ((aColor shr 16) and $FF);
 
-    result := (brightness > 128 * 3);
+    result := (brightness < 128 * 3);
 end;
 
 
@@ -278,19 +278,27 @@ end;
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
     aParams : TStringList);
 var
-    value, buf  : TDynamicString;
+    value, name, buf  : TDynamicString;
+    visible : Boolean;
     i, paramIdx : Integer;
 begin
+    // Defaults
     value := aParameter.Text;
+    name := aParameter.Name;
+    visible := false;
 
     // Correct default field numbers
     if aParameter.Name = 'Designator' then
     begin
         aParamNr := 0;
         value := StringReplace(aParameter.Text, '?', '', -1);
+        visible := true;
     end
     else if {(aParameter.Name = 'Value') or} (aParameter.Text = '=Device') then
-        aParamNr := 1
+    begin
+        aParamNr := 1;
+        visible := true;
+    end
     else if aParameter.Name = 'Footprint' then
         aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
     else if aParameter.Name = 'HelpURL' then
@@ -298,10 +306,25 @@ begin
 
     if template then
     begin
-        if aParamNr = 2 then
+        // Component Name
+        if aParamNr = 1 then
+            value := '${Part Name}'
+
+        // Footprint
+        else if aParamNr = 2 then
             value := '${Library Name}:${Footprint Ref}'
-        else
-            value := '${' + aParameter.Name + '}';
+
+        // Field evaluation
+        else if value[1] = '=' then
+        begin
+            name := Copy(value, 2, Length(value) - 1);
+            value := '${' + name + '}';
+            visible := true;
+        end
+
+        // other parameters apart from the Designator field
+        else if aParamNr <> 0 then
+            value := '${' + name + '}';
     end
     else
     begin
@@ -316,13 +339,13 @@ begin
 
     // Visibility
     // TODO find the right property in Altium
-    if aParamNr <= 1 then buf := buf + ' V' else buf := buf + ' I';
+    if visible then buf := buf + ' V' else buf := buf + ' I';
 
     buf := buf + ' L CNN';      // TODO hardcoded justification/orientation/etc.
 
     // Default fields do not store the field name at the end
     if aParamNr >= 4 then
-        buf := buf + ' "' + aParameter.Name + '"';
+        buf := buf + ' "' + name + '"';
 
     // Find the right place to insert the parameter
     for i := 0 to aParams.Count() - 1 do
@@ -724,7 +747,10 @@ begin
     WriteLn(outFile, '# ' + component);
     WriteLn(outFile, '#');
 
-    name := fixName(component);
+    if template then
+        name := '${Part Number}'
+    else
+        name := fixName(component);
 
     // Remove question marks from designator
     designator := fixName(StringReplace(aComponent.Designator.Text, '?', '', -1));
@@ -749,10 +775,24 @@ begin
 
     // Fields (parameters in Altium)
     paramList := TStringList.Create();
-    paramList.Clear();
 
     // Default fields
     processParameter(aComponent.Designator, 0, paramList);
+    WriteLn(outFile, paramList[0]);
+    paramList.Clear();
+
+    if template then
+    begin
+        // TODO smarter placement?
+        //WriteLn(outFile, 'F1 "${Part Number}" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F3 "${HelpURL}" 0 0 60 H I C CNN');
+    end
+    else
+    begin
+        WriteLn(outFile, 'F2 "" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F3 "" 0 0 60 H I C CNN');
+    end;
 
     // Custom fields
     paramIterator := aComponent.SchIterator_Create();
