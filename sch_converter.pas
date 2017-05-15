@@ -68,15 +68,15 @@ end;
 function fillToStr(aFilled : Boolean; aColor : TColor) : TDynamicString;
 begin
     if not aFilled then
-        result := 'N';
+        result := 'N'
     else if isDark(aColor) then
-        result := 'F';
+        result := 'F'
     else
         result := 'f';
 end;
 
 
-function fillToStr(aObject : ISch_GraphicalObject) : TDynamicString;
+function fillObjToStr(aObject : ISch_GraphicalObject) : TDynamicString;
 begin
     result := fillToStr(aObject.IsSolid, aObject.AreaColor)
 end;
@@ -355,7 +355,7 @@ begin
 
     if aCloseLine then Write(outFile, ' ' + locToStr(aPoly.Vertex[1]));
 
-    WriteLn(fillToStr(aFilled, aPoly.AreaColor));
+    WriteLn(outFile, fillToStr(aFilled, aPoly.AreaColor));
 end;
 
 
@@ -481,7 +481,7 @@ begin
             + ' ' + locToStr(aRect.Corner)
             + ' ' + IntToStr(aRect.OwnerPartId)
             + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth))
-            + ' ' + fillToStr(aRect));
+            + ' ' + fillObjToStr(aRect));
 end;
 
 
@@ -639,7 +639,7 @@ begin
             + ' ' + locToStr(startPt)
             + ' ' + locToStr(aPie.Location)
             + ' ' + locToStr(endPt)
-            + ' ' + fillToStr(aPie));
+            + ' ' + fillObjToStr(aPie));
 end;
 
 
@@ -654,7 +654,7 @@ begin
                 + ' ' + IntToStr(scale(aEllipse.Radius))
                 + ' ' + IntToStr(aEllipse.OwnerPartId) + ' 0 '
                 + IntToStr(convertTSize(aEllipse.LineWidth))
-                + ' ' + fillToStr(aEllipse));
+                + ' ' + fillObjToStr(aEllipse));
     end
     else
         log(component + ': ellipses are not supported');
