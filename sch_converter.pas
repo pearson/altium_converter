@@ -301,21 +301,21 @@ begin
     name := aParameter.Name;
 
     // Correct default field numbers
-    if aParameter.Name = 'Designator' then
+    if name = 'Designator' then
     begin
         aParamNr := 0;
         value := StringReplace(aParameter.Text, '?', '', -1);
     end
 
-    else if (aParameter.Name = 'Value') or (aParameter.Text = '=Device') then
+    else if {(name = 'Value') or} (aParameter.Text = '=Device') then
     begin
         aParamNr := 1;
     end
 
-    else if aParameter.Name = 'Footprint' then
+    else if name = 'Footprint' then
         aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
 
-    else if aParameter.Name = 'HelpURL' then
+    else if name = 'HelpURL' then
         aParamNr := 3;
 
     if template then
@@ -333,6 +333,9 @@ begin
         begin
             name := Copy(value, 2, Length(value) - 1);
             value := '${' + name + '}';
+
+            if name = 'Value'
+                then name := 'Val';     // 'Value' is a reserved field name
         end
 
         // other parameters apart from the Designator field
@@ -422,7 +425,7 @@ begin
             + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 50', ' 0')      // TODO get correct size
-            + ifElse(aPin.ShowName, ' 50', ' 0')            // TODO get correct size
+            + ifElse(aPin.ShowName, ' 50 ', ' 0 ')            // TODO get correct size
             + IntToStr(aPin.OwnerPartId) + ' 0');
 
     case aPin.Electrical of
@@ -780,14 +783,14 @@ begin
     if template then
     begin
         // TODO smarter placement?
-        WriteLn(outFile, 'F1 "${Part Number}" 0 0 60 H I C CNN');
-        WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 60 H I C CNN');
-        WriteLn(outFile, 'F3 "${HelpURL}" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F1 "${Part Number}" 0 0 50 H I C CNN');
+        WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 50 H I C CNN');
+        WriteLn(outFile, 'F3 "${HelpURL}" 0 0 50 H I C CNN');
     end
     else
     begin
-        WriteLn(outFile, 'F2 "" 0 0 60 H I C CNN');     // Footprint
-        WriteLn(outFile, 'F3 "" 0 0 60 H I C CNN');     // Datasheet
+        WriteLn(outFile, 'F2 "" 0 0 50 H I C CNN');     // Footprint
+        WriteLn(outFile, 'F3 "" 0 0 50 H I C CNN');     // Datasheet
     end;
 
     // Custom fields
