@@ -25,9 +25,10 @@
 uses StrUtils;
 
 var
-  logList : TStringList;
+  logList   : TStringList;
   component : String;
-  outFile : TextFile;
+  outFile   : TextFile;
+  template  : Boolean;
 
 procedure log(aMessage : TDynamicString);
 begin
@@ -275,7 +276,7 @@ end;
 
 
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
-    aTemplate : Boolean; aParams : TStringList);
+    aParams : TStringList);
 var
     value, buf  : TDynamicString;
     i, paramIdx : Integer;
@@ -295,7 +296,7 @@ begin
     else if aParameter.Name = 'HelpURL' then
         aParamNr := 3;
 
-    if aTemplate then
+    if template then
     begin
         if aParamNr = 2 then
             value := '${Library Name}:${Footprint Ref}'
@@ -708,7 +709,7 @@ begin
 end;
 
 
-procedure processComponent(aComponent : ISch_Component; aTemplate : Boolean);
+procedure processComponent(aComponent : ISch_Component);
 var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
@@ -751,7 +752,7 @@ begin
     paramList.Clear();
 
     // Default fields
-    processParameter(aComponent.Designator, 0, aTemplate, paramList);
+    processParameter(aComponent.Designator, 0, paramList);
 
     // Custom fields
     paramIterator := aComponent.SchIterator_Create();
@@ -764,7 +765,7 @@ begin
 
         while param <> nil do
         begin
-            processParameter(param, i, aTemplate, paramList);
+            processParameter(param, i, paramList);
             Inc(i);
             param := paramIterator.NextSchObject();
         end;
@@ -813,6 +814,8 @@ var
   libOutPath    : TString;
 
 begin
+    template := aTemplate;
+
     if UpperCase(Client.CurrentView.OwnerDocument.Kind) <> 'SCHLIB' then
     begin
         ShowWarning('This is not a Schematic Library document!');
@@ -834,7 +837,7 @@ begin
 
     log('Converting ' + schLib.DocumentName);
 
-    if not aTemplate then
+    if not template then
     begin
         AssignFile(outFile, libOutPath + fixFileName(libName) + '.lib');
         Rewrite(outFile);
@@ -850,16 +853,16 @@ begin
 
         while component <> nil do
         begin
-            if aTemplate then
+            if template then
             begin
                 AssignFile(outFile, libOutPath + fixFileName(component.LibReference) + '.lib');
                 Rewrite(outFile);
                 addLibHeader(outFile);
             end;
 
-            processComponent(component, aTemplate);
+            processComponent(component);
 
-            if aTemplate then
+            if template then
             begin
                 addLibFooter(outFile);
                 CloseFile(outFile);
@@ -874,7 +877,7 @@ begin
         schLib.SchIterator_Destroy(SchIterator);
     end;
 
-    if not aTemplate then
+    if not template then
     begin
         addLibFooter(outFile);
         CloseFile(outFile);
