@@ -29,10 +29,21 @@ var
   component : String;
   outFile   : TextFile;
   template  : Boolean;
+  fontMgr : ISch_FontManager;
 
 procedure log(aMessage : TDynamicString);
 begin
     logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
+end;
+
+
+function IfElse(aCondition : Boolean; aStringTrue : TDynamicString;
+    aStringFalse : TDynamicString) : TDynamicString;
+begin
+    if aCondition then
+        result := aStringTrue
+    else
+        result := aStringFalse;
 end;
 
 
@@ -66,24 +77,22 @@ begin
 end;
 
 
-function fillToStr(aFilled : Boolean; aColor : TColor) : TDynamicString;
+function fillToStr(aFilled : Boolean; aColor : TColor) : Char;
 begin
     if not aFilled then
         result := 'N'
-    else if isDark(aColor) then
-        result := 'F'
     else
-        result := 'f';
+        result := IfElse(isDark(aColor), 'F', 'f');
 end;
 
 
-function fillObjToStr(aObject : ISch_GraphicalObject) : TDynamicString;
+function fillObjToStr(aObject : ISch_GraphicalObject) : Char;
 begin
     result := fillToStr(aObject.IsSolid, aObject.AreaColor)
 end;
 
 
-function rotToStr(aRotation : TRotationBy90) : TDynamicString;
+function rotToStr(aRotation : TRotationBy90) : Char;
 begin
     case aRotation of
         eRotate0:   result := 'L';
@@ -116,7 +125,7 @@ begin
 end;
 
 
-function rotToOrient(aRotation : TRotationBy90) : String;
+function rotToOrient(aRotation : TRotationBy90) : Char;
 begin
     case aRotation of
         eRotate0:   result := 'H';
@@ -330,15 +339,15 @@ begin
         value := StringReplace(value, '"', '\"', -1);
     end;
 
+    // F n "text" posx posy dimension orientation visibility hjustify vjustify/italic/bold ["name"]
     buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
         + locToStr(aParameter.Location)
         + ' ' + IntToStr(fontSize(aParameter.FontID))
-        + ' ' + rotToOrient(aParameter.Orientation);
-
-    // Visibility
-    if aParameter.IsHidden then buf := buf + ' I' else buf := buf + ' V';
-
-    buf := buf + ' C CNN';      // TODO hardcoded justification/orientation/etc.
+        + ' ' + rotToOrient(aParameter.Orientation)
+        + IfElse(aParameter.IsHidden, ' I', ' V')
+        + ' ' + justToStr(aParameter.Justification)
+        + IfElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
+        + IfElse(fontMgr.Bold(aParameter.FontID), 'B', 'N');
 
     // Default fields do not store the field name at the end
     if aParamNr >= 4 then
@@ -622,12 +631,8 @@ end;
 
 
 procedure processLabel(aLabel : ISch_Label);
-var
-    fontMgr : ISch_FontManager;
 begin
     // T angle X Y size hidden part dmg text italic bold Halign Valign
-
-    fontMgr := SchServer.FontManager;
 
     Write(outFile, 'T ' + IntToStr(rotToInt90(aLabel.Orientation))
             + ' ' + locToStr(aLabel.Location)
@@ -636,16 +641,8 @@ begin
             + IntToStr(aLabel.OwnerPartId) + ' 0 '
             + '"' + StringReplace(aLabel.Text, '"', '''''', -1) + '"');
 
-    if fontMgr.Italic(aLabel.FontID) then
-        Write(outFile, ' Italic')
-    else
-        Write(outFile, ' Normal');
-
-    if fontMgr.Bold(aLabel.FontID) then      // TODO can it be converted to int directly?
-        Write(outFile, ' 1')
-    else
-        Write(outFile, ' 0');
-
+    Write(outFile, IfElse(fontMgr.Italic(aLabel.FontID), ' Italic', ' Normal'));
+    Write(outFile, IfElse(fontMgr.Bold(aLabel.FontID), ' 1', ' 0'));
     WriteLn(outFile, ' ' + justToStr(aLabel.Justification));
 end;
 
@@ -857,6 +854,7 @@ var
 
 begin
     template := aTemplate;
+    fontMgr := SchServer.FontManager;
 
     if UpperCase(Client.CurrentView.OwnerDocument.Kind) <> 'SCHLIB' then
     begin
