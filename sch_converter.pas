@@ -37,7 +37,13 @@ begin
 end;
 
 
-function IfElse(aCondition : Boolean; aStringTrue : TDynamicString;
+function escapeLabel(aText : TDynamicString) : TDynamicString;
+begin
+    result := StringReplace(aText, '"', '''''', -1);
+end;
+
+
+function ifElse(aCondition : Boolean; aStringTrue : TDynamicString;
     aStringFalse : TDynamicString) : TDynamicString;
 begin
     if aCondition then
@@ -82,7 +88,7 @@ begin
     if not aFilled then
         result := 'N'
     else
-        result := IfElse(isDark(aColor), 'F', 'f');
+        result := ifElse(isDark(aColor), 'F', 'f');
 end;
 
 
@@ -301,7 +307,7 @@ begin
         value := StringReplace(aParameter.Text, '?', '', -1);
     end
 
-    else if {(aParameter.Name = 'Value') or} (aParameter.Text = '=Device') then
+    else if (aParameter.Name = 'Value') or (aParameter.Text = '=Device') then
     begin
         aParamNr := 1;
     end
@@ -344,10 +350,10 @@ begin
         + locToStr(aParameter.Location)
         + ' ' + IntToStr(fontSize(aParameter.FontID))
         + ' ' + rotToOrient(aParameter.Orientation)
-        + IfElse(aParameter.IsHidden, ' I', ' V')
+        + ifElse(aParameter.IsHidden, ' I', ' V')
         + ' ' + justToStr(aParameter.Justification)
-        + IfElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
-        + IfElse(fontMgr.Bold(aParameter.FontID), 'B', 'N');
+        + ifElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
+        + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N');
 
     // Default fields do not store the field name at the end
     if aParamNr >= 4 then
@@ -414,19 +420,10 @@ begin
 
     Write(outFile, 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
             + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
-            + ' ' + rotToStr(aPin.Orientation));
-
-    if aPin.ShowDesignator then
-        Write(outFile, ' 50')       // TODO get the correct size
-    else
-        Write(outFile, ' 0');
-
-    if aPin.ShowName then
-        Write(outFile, ' 50 ')       // TODO get the correct size
-    else
-        Write(outFile, ' 0 ');
-
-    Write(outFile, IntToStr(aPin.OwnerPartId) + ' 0');
+            + ' ' + rotToStr(aPin.Orientation)
+            + ifElse(aPin.ShowDesignator, ' 50', ' 0')      // TODO get correct size
+            + ifElse(aPin.ShowName, ' 50', ' 0')            // TODO get correct size
+            + IntToStr(aPin.OwnerPartId) + ' 0');
 
     case aPin.Electrical of
         eElectricInput:            Write(outFile, ' I');
@@ -634,16 +631,15 @@ procedure processLabel(aLabel : ISch_Label);
 begin
     // T angle X Y size hidden part dmg text italic bold Halign Valign
 
-    Write(outFile, 'T ' + IntToStr(rotToInt90(aLabel.Orientation))
+    WriteLn(outFile, 'T ' + IntToStr(rotToInt90(aLabel.Orientation))
             + ' ' + locToStr(aLabel.Location)
             + ' ' + IntToStr(fontSize(aLabel.FontID))
-            + ' 0 '         // TODO visible == GraphObj::EnableDraw?
+            + ' 1 '      //ifElse(aLabel.IsHidden, ' 1 ', ' 0 ')
             + IntToStr(aLabel.OwnerPartId) + ' 0 '
-            + '"' + StringReplace(aLabel.Text, '"', '''''', -1) + '"');
-
-    Write(outFile, IfElse(fontMgr.Italic(aLabel.FontID), ' Italic', ' Normal'));
-    Write(outFile, IfElse(fontMgr.Bold(aLabel.FontID), ' 1', ' 0'));
-    WriteLn(outFile, ' ' + justToStr(aLabel.Justification));
+            + '"' + escapeLabel(aLabel.Text) + '"'
+            + ifElse(fontMgr.Italic(aLabel.FontID), ' Italic', ' Normal')
+            + ifElse(fontMgr.Bold(aLabel.FontID), ' 1 ', ' 0 ')
+            + justToStr(aLabel.Justification));
 end;
 
 
