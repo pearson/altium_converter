@@ -279,28 +279,27 @@ procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
     aParams : TStringList);
 var
     value, name, buf  : TDynamicString;
-    visible : Boolean;
     i, paramIdx : Integer;
 begin
     // Defaults
     value := aParameter.Text;
     name := aParameter.Name;
-    visible := false;
 
     // Correct default field numbers
     if aParameter.Name = 'Designator' then
     begin
         aParamNr := 0;
         value := StringReplace(aParameter.Text, '?', '', -1);
-        visible := true;
     end
+
     else if {(aParameter.Name = 'Value') or} (aParameter.Text = '=Device') then
     begin
         aParamNr := 1;
-        visible := true;
     end
+
     else if aParameter.Name = 'Footprint' then
         aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
+
     else if aParameter.Name = 'HelpURL' then
         aParamNr := 3;
 
@@ -319,7 +318,6 @@ begin
         begin
             name := Copy(value, 2, Length(value) - 1);
             value := '${' + name + '}';
-            visible := true;
         end
 
         // other parameters apart from the Designator field
@@ -338,10 +336,9 @@ begin
         + ' ' + rotToOrient(aParameter.Orientation);
 
     // Visibility
-    // TODO find the right property in Altium
-    if visible then buf := buf + ' V' else buf := buf + ' I';
+    if aParameter.IsHidden then buf := buf + ' I' else buf := buf + ' V';
 
-    buf := buf + ' L CNN';      // TODO hardcoded justification/orientation/etc.
+    buf := buf + ' C CNN';      // TODO hardcoded justification/orientation/etc.
 
     // Default fields do not store the field name at the end
     if aParamNr >= 4 then
@@ -353,7 +350,13 @@ begin
         // Extract the field number for i-th string in the output list
         paramIdx := StrToInt(Copy(aParams[i], 2, Pos(' ', aParams[i]) - 2));
 
-        if paramIdx > aParamNr then
+        if paramIdx = aParamNr then
+        begin
+            // Replace the default value
+            aParams.Delete(i);
+            break;
+        end
+        else if paramIdx > aParamNr then
             break;
     end;
 
@@ -784,14 +787,14 @@ begin
     if template then
     begin
         // TODO smarter placement?
-        //WriteLn(outFile, 'F1 "${Part Number}" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F1 "${Part Number}" 0 0 60 H I C CNN');
         WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 60 H I C CNN');
         WriteLn(outFile, 'F3 "${HelpURL}" 0 0 60 H I C CNN');
     end
     else
     begin
-        WriteLn(outFile, 'F2 "" 0 0 60 H I C CNN');
-        WriteLn(outFile, 'F3 "" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F2 "" 0 0 60 H I C CNN');     // Footprint
+        WriteLn(outFile, 'F3 "" 0 0 60 H I C CNN');     // Datasheet
     end;
 
     // Custom fields
@@ -818,7 +821,6 @@ begin
         WriteLn(outFile, paramList[i]);
 
     paramList.Free();
-
 
     // Convert the graphic symbol
     WriteLn(outFile, 'DRAW');
