@@ -304,6 +304,7 @@ begin
     if name = 'Designator' then
     begin
         aParamNr := 0;
+        // Altium keeps designators as 'X?' whereas KiCad uses only 'X'
         value := StringReplace(aParameter.Text, '?', '', -1);
     end
 
@@ -424,8 +425,8 @@ begin
     Write(outFile, 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
             + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
             + ' ' + rotToStr(aPin.Orientation)
-            + ifElse(aPin.ShowDesignator, ' 50', ' 0')      // TODO get correct size
-            + ifElse(aPin.ShowName, ' 50 ', ' 0 ')            // TODO get correct size
+            + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
+            + ifElse(aPin.ShowName, ' 60 ', ' 0 ')            // TODO get correct size
             + IntToStr(aPin.OwnerPartId) + ' 0');
 
     case aPin.Electrical of
@@ -756,7 +757,7 @@ begin
 
     // TODO hardcoded fields
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
-    WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 50 Y Y '
+    WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 60 Y Y '
         + IntToStr(aComponent.PartCount) + ' F N');
 
 
@@ -783,14 +784,14 @@ begin
     if template then
     begin
         // TODO smarter placement?
-        WriteLn(outFile, 'F1 "${Part Number}" 0 0 50 H I C CNN');
-        WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 50 H I C CNN');
-        WriteLn(outFile, 'F3 "${HelpURL}" 0 0 50 H I C CNN');
+        WriteLn(outFile, 'F1 "${Part Number}" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 60 H I C CNN');
+        WriteLn(outFile, 'F3 "${HelpURL}" 0 0 60 H I C CNN');
     end
     else
     begin
-        WriteLn(outFile, 'F2 "" 0 0 50 H I C CNN');     // Footprint
-        WriteLn(outFile, 'F3 "" 0 0 50 H I C CNN');     // Datasheet
+        WriteLn(outFile, 'F2 "" 0 0 60 H I C CNN');     // Footprint
+        WriteLn(outFile, 'F3 "" 0 0 60 H I C CNN');     // Datasheet
     end;
 
     // Custom fields
