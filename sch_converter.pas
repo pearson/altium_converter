@@ -53,6 +53,35 @@ begin
 end;
 
 
+function isDark(aColor : TColor) : Boolean;
+var
+    brightness : Integer;
+begin
+    brightness := (aColor and $FF)
+                + ((aColor shr 8) and $FF)
+                + ((aColor shr 16) and $FF);
+
+    result := (brightness > 128 * 3);
+end;
+
+
+function fillToStr(aFilled : Boolean; aColor : TColor) : TDynamicString;
+begin
+    if not aFilled then
+        result := 'N';
+    else if isDark(aColor) then
+        result := 'F';
+    else
+        result := 'f';
+end;
+
+
+function fillToStr(aObject : ISch_GraphicalObject) : TDynamicString;
+begin
+    result := fillToStr(aObject.IsSolid, aObject.AreaColor)
+end;
+
+
 function rotToStr(aRotation : TRotationBy90) : TDynamicString;
 begin
     case aRotation of
@@ -319,14 +348,14 @@ begin
     if aCloseLine then Inc(count);
 
     Write(outFile, 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
-                + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth)));
+            + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth)));
 
     for i := 1 to aPoly.VerticesCount do
         Write(outFile, ' ' + locToStr(aPoly.Vertex[i]));
 
     if aCloseLine then Write(outFile, ' ' + locToStr(aPoly.Vertex[1]));
 
-    if aFilled then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
+    WriteLn(fillToStr(aFilled, aPoly.AreaColor));
 end;
 
 
@@ -351,8 +380,17 @@ begin
             + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
             + ' ' + rotToStr(aPin.Orientation));
 
-    // TODO text label size?
-    Write(outFile, ' 50 50 ' + IntToStr(aPin.OwnerPartId) + ' 0');
+    if aPin.ShowDesignator then
+        Write(outFile, ' 50')       // TODO get the correct size
+    else
+        Write(outFile, ' 0');
+
+    if aPin.ShowName then
+        Write(outFile, ' 50 ')       // TODO get the correct size
+    else
+        Write(outFile, ' 0 ');
+
+    Write(outFile, IntToStr(aPin.OwnerPartId) + ' 0');
 
     case aPin.Electrical of
         eElectricInput:            Write(outFile, ' I');
@@ -439,11 +477,11 @@ procedure processRectangle(aRect : ISch_Rectangle);
 begin
     // S startx starty endx endy unit convert thickness cc
 
-    Write(outFile, 'S ' + locToStr(aRect.Location) + ' ' + locToStr(aRect.Corner)
-                + ' ' + IntToStr(aRect.OwnerPartId)
-                + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth)));
-
-    if aRect.IsSolid() then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
+    WriteLn(outFile, 'S ' + locToStr(aRect.Location)
+            + ' ' + locToStr(aRect.Corner)
+            + ' ' + IntToStr(aRect.OwnerPartId)
+            + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth))
+            + ' ' + fillToStr(aRect));
 end;
 
 
@@ -484,10 +522,10 @@ begin
     radius  := (aRoundRect.CornerXRadius + aRoundRect.CornerYRadius) / 2;
 
     if aRoundRect.CornerXRadius <> aRoundRect.CornerYRadius then
-       log(component + ': has rounded rectangle with different X & Y corner radius, not supported');
+        log(component + ': has rounded rectangle with different X & Y corner radius, not supported');
 
     if aRoundRect.IsSolid then
-       log(component + ': filled rounded rectangles are converted as stroked ones');
+        log(component + ': filled rounded rectangles are converted as stroked ones');
 
     // left edge
     WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
@@ -596,13 +634,12 @@ begin
     // KiCad does not have pies, instead draw an arc and a polyline
     processArc(aPie, aPie.IsSolid());
 
-    Write(outFile, 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
+    WriteLn(outFile, 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
             + IntToStr(convertTSize(aPie.LineWidth))
             + ' ' + locToStr(startPt)
             + ' ' + locToStr(aPie.Location)
-            + ' ' + locToStr(endPt));
-
-    if aPie.IsSolid() then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
+            + ' ' + locToStr(endPt)
+            + ' ' + fillToStr(aPie));
 end;
 
 
@@ -613,12 +650,11 @@ begin
     if aEllipse.Radius = aEllipse.SecondaryRadius then
     begin
         // C posx posy radius unit convert thickness cc
-        Write(outFile, 'C ' + locToStr(aEllipse.Location)
+        WriteLn(outFile, 'C ' + locToStr(aEllipse.Location)
                 + ' ' + IntToStr(scale(aEllipse.Radius))
                 + ' ' + IntToStr(aEllipse.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aEllipse.LineWidth)));
-
-        if aEllipse.IsSolid() then WriteLn(outFile, ' f') else WriteLn(outFile, ' N');
+                + IntToStr(convertTSize(aEllipse.LineWidth))
+                + ' ' + fillToStr(aEllipse));
     end
     else
         log(component + ': ellipses are not supported');

@@ -1,9 +1,6 @@
 TODO:
 - Add missing fields (Footprint, HelpURL, etc.)
 - Progress bar
-- =Device field?
-- Hide pins if none of the pins is set as visible
-- Select fill color (dark/light)
 - Bezier curves to emulate ellipse/elliptical arcs
 - Model assignment
 - TODOs in the code
