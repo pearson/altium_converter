@@ -29,7 +29,8 @@ var
   component : String;
   outFile   : TextFile;
   template  : Boolean;
-  fontMgr : ISch_FontManager;
+  modeCount : Integer;
+  fontMgr   : ISch_FontManager;
 
 procedure log(aMessage : TDynamicString);
 begin
@@ -56,6 +57,14 @@ end;
 function scale(RelCoord : Real) : Real;
 begin
     result := RelCoord * 0.0001;
+end;
+
+
+function partMode(aObject : ISch_GraphicalObject) : TDynamicString;
+begin
+    // Currently only two modes are supported by KiCad
+    result := IntToStr(aObject.OwnerPartId)
+            + ' ' + ifElse(modeCount = 2, IntToStr(aObject.OwnerPartDisplayMode + 1), '0');
 end;
 
 
@@ -393,15 +402,15 @@ begin
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
 
-    Write(outFile, 'P ' + IntToStr(count) + ' ' + IntToStr(aPoly.OwnerPartId)
-            + ' 0 ' + IntToStr(convertTSize(aPoly.LineWidth)));
+    Write(outFile, 'P ' + IntToStr(count) + ' ' + partMode(aPoly)
+            + ' ' + IntToStr(convertTSize(aPoly.LineWidth)));
 
     for i := 1 to aPoly.VerticesCount do
         Write(outFile, ' ' + locToStr(aPoly.Vertex[i]));
 
     if aCloseLine then Write(outFile, ' ' + locToStr(aPoly.Vertex[1]));
 
-    WriteLn(outFile, fillToStr(aFilled, aPoly.AreaColor));
+    WriteLn(outFile, ' ' + fillToStr(aFilled, aPoly.AreaColor));
 end;
 
 
@@ -427,7 +436,7 @@ begin
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
             + ifElse(aPin.ShowName, ' 60 ', ' 0 ')            // TODO get correct size
-            + IntToStr(aPin.OwnerPartId) + ' 0');
+            + partMode(aPin));
 
     case aPin.Electrical of
         eElectricInput:            Write(outFile, ' I');
@@ -515,9 +524,8 @@ begin
     // S startx starty endx endy unit convert thickness cc
 
     WriteLn(outFile, 'S ' + locToStr(aRect.Location)
-            + ' ' + locToStr(aRect.Corner)
-            + ' ' + IntToStr(aRect.OwnerPartId)
-            + ' 0 ' + IntToStr(convertTSize(aRect.LineWidth))
+            + ' ' + locToStr(aRect.Corner) + ' ' + partMode(aRect)
+            + ' ' + IntToStr(convertTSize(aRect.LineWidth))
             + ' ' + fillObjToStr(aRect));
 end;
 
@@ -526,8 +534,9 @@ procedure processLine(aLine : ISch_Line);
 begin
     // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
-    WriteLn(outFile, 'P 2 ' + IntToStr(aLine.OwnerPartId) + ' 0 ' + IntToStr(convertTSize(aLine.LineWidth))
-              + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
+    WriteLn(outFile, 'P 2 ' + partMode(aLine)
+            + ' ' + IntToStr(convertTSize(aLine.LineWidth))
+            + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
 
 
@@ -536,9 +545,8 @@ begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
     Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
-                + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
-                + ' ' + IntToStr(aArc.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aArc.LineWidth)));
+            + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
+            + ' ' + partMode(aArc) + IntToStr(convertTSize(aArc.LineWidth)));
 
     if aFilled then Write(outFile, ' f ') else Write(outFile, ' N ');
 
@@ -565,52 +573,52 @@ begin
         log(component + ': filled rounded rectangles are converted as stroked ones');
 
     // left edge
-    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
-        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-        + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(startY + radius))
-        + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
+    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+            + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(startY + radius))
+            + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
 
     // bottom edge
-    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
-        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-        + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY))
-        + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY)) + ' N');
+    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+            + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY))
+            + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY)) + ' N');
 
     // right edge
-    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
-        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-        + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(startY + radius))
-        + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
+    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+            + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(startY + radius))
+            + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
 
     // top edge
-    WriteLn(outFile, 'P 2 ' + IntToStr(aRoundRect.OwnerPartId)
-        + ' 0 ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-        + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY))
-        + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY)) + ' N');
+    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
+            + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY))
+            + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY)) + ' N');
 
     // top left corner
     WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY - radius))
-                + ' ' + IntToStr(scale(radius)) + ' 900 1800 '
-                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(scale(radius)) + ' 900 1800 '
+            + partMode(aRoundRect)
+            + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom left corner
     WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY + radius))
-                + ' ' + IntToStr(scale(radius)) + ' -900 1800 '
-                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(scale(radius)) + ' -900 1800 '
+            + partMode(aRoundRect)
+            + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // top right corner
     WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY - radius))
-                + ' ' + IntToStr(scale(radius)) + ' 900 0 '
-                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(scale(radius)) + ' 900 0 '
+            + partMode(aRoundRect)
+            + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom right corner
     WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY + radius))
-                + ' ' + IntToStr(scale(radius)) + ' -900 0 '
-                + IntToStr(aRoundRect.OwnerPartId) + ' 0 '
-                + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(scale(radius)) + ' -900 0 '
+            + partMode(aRoundRect)
+            + IntToStr(convertTSize(aRoundRect.LineWidth)));
 end;
 
 
@@ -620,9 +628,8 @@ var
 begin
     // B count part dmg pen X Y ... fill
 
-    Write(outFile, 'B ' + IntToStr(aBezier.VerticesCount)
-            + ' ' + IntToStr(aBezier.OwnerPartId)
-            + ' 0 ' + IntToStr(convertTSize(aBezier.LineWidth)));
+    Write(outFile, 'B ' + IntToStr(aBezier.VerticesCount) + partMode(aBezier)
+            + ' ' + IntToStr(convertTSize(aBezier.LineWidth)));
 
     for i := 1 to aBezier.VerticesCount do
         Write(outFile, ' ' + locToStr(aBezier.Vertex[i]));
@@ -639,7 +646,7 @@ begin
             + ' ' + locToStr(aLabel.Location)
             + ' ' + IntToStr(fontSize(aLabel.FontID))
             + ' 1 '      //ifElse(aLabel.IsHidden, ' 1 ', ' 0 ')
-            + IntToStr(aLabel.OwnerPartId) + ' 0 '
+            + partMode(aLabel)
             + '"' + escapeLabel(aLabel.Text) + '"'
             + ifElse(fontMgr.Italic(aLabel.FontID), ' Italic', ' Normal')
             + ifElse(fontMgr.Bold(aLabel.FontID), ' 1 ', ' 0 ')
@@ -658,7 +665,7 @@ begin
     // KiCad does not have pies, instead draw an arc and a polyline
     processArc(aPie, aPie.IsSolid());
 
-    WriteLn(outFile, 'P 3 ' + IntToStr(aPie.OwnerPartId) + ' 0 '
+    WriteLn(outFile, 'P 3 ' + partMode(aPie)
             + IntToStr(convertTSize(aPie.LineWidth))
             + ' ' + locToStr(startPt)
             + ' ' + locToStr(aPie.Location)
@@ -676,7 +683,7 @@ begin
         // C posx posy radius unit convert thickness cc
         WriteLn(outFile, 'C ' + locToStr(aEllipse.Location)
                 + ' ' + IntToStr(scale(aEllipse.Radius))
-                + ' ' + IntToStr(aEllipse.OwnerPartId) + ' 0 '
+                + partMode(aEllipse)
                 + IntToStr(convertTSize(aEllipse.LineWidth))
                 + ' ' + fillObjToStr(aEllipse));
     end
@@ -742,6 +749,10 @@ var
     name, designator            : TString;
 begin
     component := aComponent.LibReference;
+    modeCount := aComponent.DisplayModeCount;
+
+    if modeCount > 2 then
+        log('components with more than 2 modes are not supported');
 
     WriteLn(outFile, '#');
     WriteLn(outFile, '# ' + component);
