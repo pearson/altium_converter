@@ -628,7 +628,8 @@ var
 begin
     // B count part dmg pen X Y ... fill
 
-    Write(outFile, 'B ' + IntToStr(aBezier.VerticesCount) + partMode(aBezier)
+    Write(outFile, 'B ' + IntToStr(aBezier.VerticesCount)
+            + ' ' + partMode(aBezier)
             + ' ' + IntToStr(convertTSize(aBezier.LineWidth)));
 
     for i := 1 to aBezier.VerticesCount do
@@ -645,9 +646,8 @@ begin
     WriteLn(outFile, 'T ' + IntToStr(rotToInt90(aLabel.Orientation))
             + ' ' + locToStr(aLabel.Location)
             + ' ' + IntToStr(fontSize(aLabel.FontID))
-            + ' 1 '      //ifElse(aLabel.IsHidden, ' 1 ', ' 0 ')
-            + partMode(aLabel)
-            + '"' + escapeLabel(aLabel.Text) + '"'
+            + ' 1 ' + partMode(aLabel)
+            + ' "' + escapeLabel(aLabel.Text) + '"'
             + ifElse(fontMgr.Italic(aLabel.FontID), ' Italic', ' Normal')
             + ifElse(fontMgr.Bold(aLabel.FontID), ' 1 ', ' 0 ')
             + justToStr(aLabel.Justification));
@@ -666,7 +666,7 @@ begin
     processArc(aPie, aPie.IsSolid());
 
     WriteLn(outFile, 'P 3 ' + partMode(aPie)
-            + IntToStr(convertTSize(aPie.LineWidth))
+            + ' ' + IntToStr(convertTSize(aPie.LineWidth))
             + ' ' + locToStr(startPt)
             + ' ' + locToStr(aPie.Location)
             + ' ' + locToStr(endPt)
@@ -683,7 +683,7 @@ begin
         // C posx posy radius unit convert thickness cc
         WriteLn(outFile, 'C ' + locToStr(aEllipse.Location)
                 + ' ' + IntToStr(scale(aEllipse.Radius))
-                + partMode(aEllipse)
+                + ' ' + partMode(aEllipse)
                 + IntToStr(convertTSize(aEllipse.LineWidth))
                 + ' ' + fillObjToStr(aEllipse));
     end
