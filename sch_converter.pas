@@ -600,25 +600,25 @@ begin
     WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY - radius))
             + ' ' + IntToStr(scale(radius)) + ' 900 1800 '
             + partMode(aRoundRect)
-            + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom left corner
     WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY + radius))
             + ' ' + IntToStr(scale(radius)) + ' -900 1800 '
             + partMode(aRoundRect)
-            + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // top right corner
     WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY - radius))
             + ' ' + IntToStr(scale(radius)) + ' 900 0 '
             + partMode(aRoundRect)
-            + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom right corner
     WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY + radius))
             + ' ' + IntToStr(scale(radius)) + ' -900 0 '
             + partMode(aRoundRect)
-            + IntToStr(convertTSize(aRoundRect.LineWidth)));
+            + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 end;
 
 
@@ -717,7 +717,7 @@ begin
         ePie:            processPie(aObject);
         eEllipse:        processEllipse(aObject);
         eEllipticalArc:  processEllipticalArc(aObject);
-        //eBezier:         processBezier(aObject);  // TODO uncomment when fixed in KiCad
+        eBezier:         processBezier(aObject);
 
         // not available in KiCad
         eImage:          log(component + ': images are not supported');

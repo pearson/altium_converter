@@ -1,9 +1,10 @@
 TODO:
-- Add missing fields (Footprint, HelpURL, etc.)
 - Progress bar
 - Bezier curves to emulate ellipse/elliptical arcs
 - Model assignment
 - TODOs in the code
+- Check bug with and gate (arc in wrong direction)
+- Fields from .csv files
 
 
 Limitations:
