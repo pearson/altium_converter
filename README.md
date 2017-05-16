@@ -10,7 +10,6 @@ TODO:
 Limitations:
 
 Schematic symbol conversion:
-- Pin name/number visibility (KiCad sets this per component)
 - Multiline text frames
 - Dashed/dotted lines
 - Colors

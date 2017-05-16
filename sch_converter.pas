@@ -32,6 +32,10 @@ var
   modeCount : Integer;
   fontMgr   : ISch_FontManager;
 
+const
+  paramTextSize = 60;
+  scaleK_A = 10000;
+
 procedure log(aMessage : TDynamicString);
 begin
     logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
@@ -54,9 +58,15 @@ begin
 end;
 
 
-function scale(RelCoord : Real) : Real;
+function scaleToKiCad(aCoord : Integer) : Integer;
 begin
-    result := RelCoord * 0.0001;
+    result := aCoord / scaleK_A;
+end;
+
+
+function scaleToAltium(aCoord : Integer) : Integer;
+begin
+    result := aCoord * scaleK_A;
 end;
 
 
@@ -169,7 +179,7 @@ end;
 
 function locToStr(aLocation : TLocation) : TDynamicString;
 begin
-    result := IntToStr(scale(aLocation.x)) + ' ' + IntToStr(scale(aLocation.y));
+    result := IntToStr(scaleToKiCad(aLocation.x)) + ' ' + IntToStr(scaleToKiCad(aLocation.y));
 end;
 
 
@@ -302,7 +312,7 @@ end;
 procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
     aParams : TStringList);
 var
-    value, name, buf  : TDynamicString;
+    value, name, buf : TDynamicString;
     i, paramIdx : Integer;
 begin
     // Defaults
@@ -432,7 +442,7 @@ begin
     end;
 
     Write(outFile, 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
-            + ' ' + locToStr(pos) + ' ' + IntToStr(scale(aPin.PinLength))
+            + ' ' + locToStr(pos) + ' ' + IntToStr(scaleToKiCad(aPin.PinLength))
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
             + ifElse(aPin.ShowName, ' 60 ', ' 0 ')            // TODO get correct size
@@ -544,7 +554,7 @@ procedure processArc(aArc : ISch_Arc; aFilled : Boolean);
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
-    Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scale(aArc.Radius))
+    Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scaleToKiCad(aArc.Radius))
             + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
             + ' ' + partMode(aArc) + IntToStr(convertTSize(aArc.LineWidth)));
 
@@ -575,48 +585,48 @@ begin
     // left edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(startY + radius))
-            + ' ' + IntToStr(scale(startX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
+            + ' ' + IntToStr(scaleToKiCad(startX)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
+            + ' ' + IntToStr(scaleToKiCad(startX)) + ' ' + IntToStr(scaleToKiCad(endY - radius)) + ' N');
 
     // bottom edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY))
-            + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY)) + ' N');
+            + ' ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(endY))
+            + ' ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(endY)) + ' N');
 
     // right edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(startY + radius))
-            + ' ' + IntToStr(scale(endX)) + ' ' + IntToStr(scale(endY - radius)) + ' N');
+            + ' ' + IntToStr(scaleToKiCad(endX)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
+            + ' ' + IntToStr(scaleToKiCad(endX)) + ' ' + IntToStr(scaleToKiCad(endY - radius)) + ' N');
 
     // top edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY))
-            + ' ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY)) + ' N');
+            + ' ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(startY))
+            + ' ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(startY)) + ' N');
 
     // top left corner
-    WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(endY - radius))
-            + ' ' + IntToStr(scale(radius)) + ' 900 1800 '
+    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(endY - radius))
+            + ' ' + IntToStr(scaleToKiCad(radius)) + ' 900 1800 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom left corner
-    WriteLn(outFile, 'A ' + IntToStr(scale(startX + radius)) + ' ' + IntToStr(scale(startY + radius))
-            + ' ' + IntToStr(scale(radius)) + ' -900 1800 '
+    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
+            + ' ' + IntToStr(scaleToKiCad(radius)) + ' -900 1800 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // top right corner
-    WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(endY - radius))
-            + ' ' + IntToStr(scale(radius)) + ' 900 0 '
+    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(endY - radius))
+            + ' ' + IntToStr(scaleToKiCad(radius)) + ' 900 0 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom right corner
-    WriteLn(outFile, 'A ' + IntToStr(scale(endX - radius)) + ' ' + IntToStr(scale(startY + radius))
-            + ' ' + IntToStr(scale(radius)) + ' -900 0 '
+    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
+            + ' ' + IntToStr(scaleToKiCad(radius)) + ' -900 0 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 end;
@@ -682,7 +692,7 @@ begin
     begin
         // C posx posy radius unit convert thickness cc
         WriteLn(outFile, 'C ' + locToStr(aEllipse.Location)
-                + ' ' + IntToStr(scale(aEllipse.Radius))
+                + ' ' + IntToStr(scaleToKiCad(aEllipse.Radius))
                 + ' ' + partMode(aEllipse)
                 + IntToStr(convertTSize(aEllipse.LineWidth))
                 + ' ' + fillObjToStr(aEllipse));
@@ -739,6 +749,19 @@ begin
 end;
 
 
+procedure writeParam(aComponent : ISch_Component; aIndex : Integer; aValue : TDynamicString);
+var
+
+    paramPos : TLocation;
+begin
+    paramPos := TLocation;
+    paramPos.x := aComponent.Location.x;
+    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(paramTextSize * (aIndex * 1.5));
+    WriteLn(outFile, 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
+            + locToStr(paramPos) + ' ' + IntToStr(paramTextSize) + ' H I L CNN');
+end;
+
+
 procedure processComponent(aComponent : ISch_Component);
 var
     objIterator, paramIterator  : ISch_Iterator;
@@ -746,7 +769,7 @@ var
     paramList                   : TStringList;
     schObj                      : ISch_GraphicalObject;
     i                           : Integer;
-    name, designator            : TString;
+    name, designator            : TDynamicString;
 begin
     component := aComponent.LibReference;
     modeCount := aComponent.DisplayModeCount;
@@ -768,8 +791,8 @@ begin
 
     // TODO hardcoded fields
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
-    WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 60 Y Y '
-        + IntToStr(aComponent.PartCount) + ' F N');
+    WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 '
+        + IntToStr(paramTextSize) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' F N');
 
 
     // Aliases
@@ -794,15 +817,14 @@ begin
 
     if template then
     begin
-        // TODO smarter placement?
-        WriteLn(outFile, 'F1 "${Part Number}" 0 0 60 H I C CNN');
-        WriteLn(outFile, 'F2 "${Library Name}:${Footprint Ref}" 0 0 60 H I C CNN');
-        WriteLn(outFile, 'F3 "${HelpURL}" 0 0 60 H I C CNN');
+        writeParam(aComponent, 1, '${Part Number}');
+        writeParam(aComponent, 2, '${Library Name}:${Footprint Ref}');
+        writeParam(aComponent, 3, '${HelpURL}');
     end
     else
     begin
-        WriteLn(outFile, 'F2 "" 0 0 60 H I C CNN');     // Footprint
-        WriteLn(outFile, 'F3 "" 0 0 60 H I C CNN');     // Datasheet
+        writeParam(aComponent, 2, '');          // Footprint
+        writeParam(aComponent, 3, '');          // Datasheet
     end;
 
     // Custom fields
