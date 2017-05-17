@@ -36,6 +36,10 @@ const
   paramTextSize = 60;
   scaleK_A = 10000;
 
+// not possible in DelphiScript
+//type
+//  TDefParams = array[0..3] of TDynamicString;
+
 procedure log(aMessage : TDynamicString);
 begin
     logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
@@ -309,8 +313,22 @@ begin
 end;
 
 
-procedure processParameter(aParameter : ISch_Parameter; aParamNr : Integer;
-    aParams : TStringList);
+function paramToStr(aComponent : ISch_Component; aIndex : Integer;
+                    aValue : TDynamicString) : TDynamicString;
+var
+
+    paramPos : TLocation;
+begin
+    paramPos := TLocation;
+    paramPos.x := aComponent.Location.x;
+    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(paramTextSize * (aIndex * 1.5));
+    result := 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
+            + locToStr(paramPos) + ' ' + IntToStr(paramTextSize) + ' H I L CNN';
+end;
+
+
+procedure processParameter(aParameter : ISch_Parameter; aComponent : ISch_Component;
+    aDefParams : var {array [0..3] of TDynamicString}; aCustomParams : TStringList);
 var
     value, name, buf : TDynamicString;
     i, paramIdx : Integer;
@@ -318,34 +336,35 @@ begin
     // Defaults
     value := aParameter.Text;
     name := aParameter.Name;
+    paramIdx := 4;          // assume it is a custom field
 
     // Correct default field numbers
     if name = 'Designator' then
     begin
-        aParamNr := 0;
+        paramIdx := 0;
         // Altium keeps designators as 'X?' whereas KiCad uses only 'X'
         value := StringReplace(aParameter.Text, '?', '', -1);
     end
 
     else if {(name = 'Value') or} (aParameter.Text = '=Device') then
     begin
-        aParamNr := 1;
+        paramIdx := 1;
     end
 
     else if name = 'Footprint' then
-        aParamNr := 2       // TODO use ISch_Implementation to figure out the footprint?
+        paramIdx := 2       // TODO use ISch_Implementation to figure out the footprint?
 
     else if name = 'HelpURL' then
-        aParamNr := 3;
+        paramIdx := 3;
 
     if template then
     begin
         // Component Name
-        if aParamNr = 1 then
+        if paramIdx = 1 then
             value := '${Part Name}'
 
         // Footprint
-        else if aParamNr = 2 then
+        else if paramIdx = 2 then
             value := '${Library Name}:${Footprint Ref}'
 
         // Field evaluation
@@ -358,8 +377,8 @@ begin
                 then name := 'Val';     // 'Value' is a reserved field name
         end
 
-        // other parameters apart from the Designator field
-        else if aParamNr <> 0 then
+        // Other parameters apart from the Designator field
+        else if paramIdx <> 0 then
             value := '${' + name + '}';
     end
     else
@@ -368,37 +387,29 @@ begin
         value := StringReplace(value, '"', '\"', -1);
     end;
 
-    // F n "text" posx posy dimension orientation visibility hjustify vjustify/italic/bold ["name"]
-    buf := 'F' + IntToStr(aParamNr) + ' "' + value + '" '
-        + locToStr(aParameter.Location)
-        + ' ' + IntToStr(fontSize(aParameter.FontID))
-        + ' ' + rotToOrient(aParameter.Orientation)
-        + ifElse(aParameter.IsHidden, ' I', ' V')
-        + ' ' + justToStr(aParameter.Justification)
-        + ifElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
-        + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N');
-
-    // Default fields do not store the field name at the end
-    if aParamNr >= 4 then
-        buf := buf + ' "' + name + '"';
-
-    // Find the right place to insert the parameter
-    for i := 0 to aParams.Count() - 1 do
+    if paramIdx < 4 then
     begin
-        // Extract the field number for i-th string in the output list
-        paramIdx := StrToInt(Copy(aParams[i], 2, Pos(' ', aParams[i]) - 2));
+         // Default fields
+         aDefParams[paramIdx] := paramToStr(aComponent, paramIdx, value)
+    end
+    else
+    begin
+        // Custom fields
+        paramIdx := 4 + aCustomParams.Count();
 
-        if paramIdx = aParamNr then
-        begin
-            // Replace the default value
-            aParams.Delete(i);
-            break;
-        end
-        else if paramIdx > aParamNr then
-            break;
+        // F n "text" posx posy dimension orientation visibility hjustify vjustify/italic/bold ["name"]
+        buf := 'F' + IntToStr(paramIdx) + ' "' + value + '" '
+            + locToStr(aParameter.Location)
+            + ' ' + IntToStr(fontSize(aParameter.FontID))
+            + ' ' + rotToOrient(aParameter.Orientation)
+            + ifElse(aParameter.IsHidden, ' I', ' V')
+            + ' ' + justToStr(aParameter.Justification)
+            + ifElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
+            + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N')
+            + ' "' + name + '"';
+
+        aCustomParams.Append(buf);
     end;
-
-    aParams.Insert(i, buf);
 end;
 
 
@@ -749,27 +760,16 @@ begin
 end;
 
 
-procedure writeParam(aComponent : ISch_Component; aIndex : Integer; aValue : TDynamicString);
-var
-
-    paramPos : TLocation;
-begin
-    paramPos := TLocation;
-    paramPos.x := aComponent.Location.x;
-    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(paramTextSize * (aIndex * 1.5));
-    WriteLn(outFile, 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
-            + locToStr(paramPos) + ' ' + IntToStr(paramTextSize) + ' H I L CNN');
-end;
-
-
 procedure processComponent(aComponent : ISch_Component);
 var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
-    paramList                   : TStringList;
+    defParams                   : array[0..3] of TDynamicString;
+    customParams                : TStringList;
     schObj                      : ISch_GraphicalObject;
     i                           : Integer;
     name, designator            : TDynamicString;
+
 begin
     component := aComponent.LibReference;
     modeCount := aComponent.DisplayModeCount;
@@ -789,7 +789,7 @@ begin
     // Remove question marks from designator
     designator := fixName(StringReplace(aComponent.Designator.Text, '?', '', -1));
 
-    // TODO hardcoded fields
+    // TODO swappable?
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
     WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 '
         + IntToStr(paramTextSize) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' F N');
@@ -808,23 +808,22 @@ begin
 
 
     // Fields (parameters in Altium)
-    paramList := TStringList.Create();
+    customParams := TStringList.Create();
 
     // Default fields
-    processParameter(aComponent.Designator, 0, paramList);
-    WriteLn(outFile, paramList[0]);
-    paramList.Clear();
+    defParams[0] := paramToStr(aComponent, 0, designator);
+    defParams[1] := paramToStr(aComponent, 1, name);
 
     if template then
     begin
-        writeParam(aComponent, 1, '${Part Number}');
-        writeParam(aComponent, 2, '${Library Name}:${Footprint Ref}');
-        writeParam(aComponent, 3, '${HelpURL}');
+        defParams[2] := paramToStr(aComponent, 2, '${Library Name}:${Footprint Ref}');
+        defParams[3] := paramToStr(aComponent, 3, '${HelpURL}');
     end
     else
     begin
-        writeParam(aComponent, 2, '');          // Footprint
-        writeParam(aComponent, 3, '');          // Datasheet
+
+        defParams[2] := paramToStr(aComponent, 2, '');          // Footprint
+        defParams[3] := paramToStr(aComponent, 3, '');          // Datasheet
     end;
 
     // Custom fields
@@ -834,12 +833,10 @@ begin
 
     try
         param := paramIterator.FirstSchObject;
-        i := 4;     // parameters 0-3 are reserved, 4+ are custom
 
         while param <> nil do
         begin
-            processParameter(param, i, paramList);
-            Inc(i);
+            processParameter(param, aComponent, defParams, customParams);
             param := paramIterator.NextSchObject();
         end;
 
@@ -847,10 +844,13 @@ begin
         aComponent.SchIterator_Destroy(paramIterator);
     end;
 
-    for i := 0 to paramList.Count() - 1 do
-        WriteLn(outFile, paramList[i]);
+    for i := 0 to 3 do
+        WriteLn(outFile, defParams[i]);
 
-    paramList.Free();
+    for i := 0 to customParams.Count() - 1 do
+        WriteLn(outFile, customParams[i]);
+
+    customParams.Free();
 
     // Convert the graphic symbol
     WriteLn(outFile, 'DRAW');
