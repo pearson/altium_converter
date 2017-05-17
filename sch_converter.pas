@@ -886,6 +886,7 @@ var
   component     : ISch_Component;
   schLib        : ISch_Lib;
   schIterator   : ISch_Iterator;
+  compReader    : ILibCompInfoReader;
 
   libName       : TDynamicString;
   libOutPath    : TString;
@@ -903,6 +904,9 @@ begin
     schLib := SchServer.GetCurrentSchDocument;
     if schLib = nil then
         exit;
+
+    compReader := SchServer.CreateLibCompInfoReader(schLib.DocumentName);
+    compReader.ReadAllComponentInfo();
 
     // Set encoding to UTF-8
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dd317756(v=vs.85).aspx
@@ -925,6 +929,7 @@ begin
     // Iterate through components in the library
     schIterator := schLib.SchLibIterator_Create;
     schIterator.AddFilter_ObjectSet(MkSet(eSchComponent));
+    ProgressInit('Converting library ' + schLib.DocumentName, compReader.NumComponentInfos);
 
     try
         component := schIterator.FirstSchObject;
@@ -948,6 +953,7 @@ begin
             else
                 Flush(outFile);
 
+            ProgressUpdate(1);
             component := schIterator.NextSchObject;
         end;
 
@@ -965,6 +971,7 @@ begin
     logList.SaveToFile(libOutPath + fixFileName(libName) + '.txt');
     logList.Free();
 
+    ProgressFinish(0);
     ShowMessage('Saved in ' + libOutPath);
 end;
 
