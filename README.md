@@ -1,7 +1,5 @@
 TODO:
 - Bezier curves to emulate ellipse/elliptical arcs
-- TODOs in the code
-- Check bug with and gate (arc in wrong direction)
 - 3D model association (footprints)
 
 

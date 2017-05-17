@@ -574,12 +574,12 @@ begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
     Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scaleToKiCad(aArc.Radius))
-            + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
+            + ' ' + IntToStr(aArc.EndAngle * 10) + ' ' + IntToStr(aArc.StartAngle * 10)
             + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth)));
 
     if aFilled then Write(outFile, ' f ') else Write(outFile, ' N ');
 
-    WriteLn(outFile, locToStr(arcStartPt(aArc)) + ' ' + locToStr(arcEndPt(aArc)));
+    WriteLn(outFile, locToStr(arcEndPt(aArc)) + ' ' + locToStr(arcStartPt(aArc)));
 end;
 
 
