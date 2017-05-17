@@ -313,58 +313,76 @@ begin
 end;
 
 
-function paramToStr(aComponent : ISch_Component; aIndex : Integer;
-                    aValue : TDynamicString) : TDynamicString;
+// Autoplaces hidden parameters basing on their index
+function autoParamToStr(aComponent : ISch_Component; aIndex : Integer;
+    aValue : TDynamicString) : TDynamicString;
 var
-
     paramPos : TLocation;
 begin
     paramPos := TLocation;
     paramPos.x := aComponent.Location.x;
     paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(paramTextSize * (aIndex * 1.5));
+
     result := 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
             + locToStr(paramPos) + ' ' + IntToStr(paramTextSize) + ' H I L CNN';
 end;
 
 
-procedure processParameter(aParameter : ISch_Parameter; aComponent : ISch_Component;
-    aDefParams : var {array [0..3] of TDynamicString}; aCustomParams : TStringList);
+function paramToStr(aParameter : ISch_Parameter; aIndex : Integer;
+    aValue : TDynamicString, aName : TDynamicString) : TDynamicString;
+begin
+    // F n "text" posx posy dimension orientation visibility hjustify vjustify/italic/bold ["name"]
+    result := 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
+        + locToStr(aParameter.Location)
+        + ' ' + IntToStr(fontSize(aParameter.FontID))
+        + ' ' + rotToOrient(aParameter.Orientation)
+        + ifElse(aParameter.IsHidden, ' I', ' V')
+        + ' ' + justToStr(aParameter.Justification)
+        + ifElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
+        + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N')
+
+        // Custom fields have to store the field name
+        + ifElse(aIndex >= 4, ' "' + aName + '"', '');
+end;
+
+
+function processParameter(aParameter : ISch_Parameter; aComponent : ISch_Component;
+    var aParamIdx : Integer) : TDynamicString;
 var
-    value, name, buf : TDynamicString;
-    i, paramIdx : Integer;
+    value, name : TDynamicString;
+    i : Integer;
 begin
     // Defaults
     value := aParameter.Text;
     name := aParameter.Name;
-    paramIdx := 4;          // assume it is a custom field
 
     // Correct default field numbers
     if name = 'Designator' then
     begin
-        paramIdx := 0;
+        aParamIdx := 0;
         // Altium keeps designators as 'X?' whereas KiCad uses only 'X'
         value := StringReplace(aParameter.Text, '?', '', -1);
     end
 
-    else if {(name = 'Value') or} (aParameter.Text = '=Device') then
+    else if aParameter.Text = '=Device' then
     begin
-        paramIdx := 1;
+        aParamIdx := 1;
     end
 
     else if name = 'Footprint' then
-        paramIdx := 2       // TODO use ISch_Implementation to figure out the footprint?
+        aParamIdx := 2       // TODO use ISch_Implementation to figure out the footprint?
 
     else if name = 'HelpURL' then
-        paramIdx := 3;
+        aParamIdx := 3;
 
     if template then
     begin
         // Component Name
-        if paramIdx = 1 then
-            value := '${Part Name}'
+        if aParamIdx = 1 then
+            value := '${Part Number}'
 
         // Footprint
-        else if paramIdx = 2 then
+        else if aParamIdx = 2 then
             value := '${Library Name}:${Footprint Ref}'
 
         // Field evaluation
@@ -378,7 +396,7 @@ begin
         end
 
         // Other parameters apart from the Designator field
-        else if paramIdx <> 0 then
+        else if aParamIdx <> 0 then
             value := '${' + name + '}';
     end
     else
@@ -387,34 +405,15 @@ begin
         value := StringReplace(value, '"', '\"', -1);
     end;
 
-    if paramIdx < 4 then
-    begin
-         // Default fields
-         aDefParams[paramIdx] := paramToStr(aComponent, paramIdx, value)
-    end
+    if aParameter.IsHidden then
+        result := autoParamToStr(aComponent, aParamIdx, value)
     else
-    begin
-        // Custom fields
-        paramIdx := 4 + aCustomParams.Count();
-
-        // F n "text" posx posy dimension orientation visibility hjustify vjustify/italic/bold ["name"]
-        buf := 'F' + IntToStr(paramIdx) + ' "' + value + '" '
-            + locToStr(aParameter.Location)
-            + ' ' + IntToStr(fontSize(aParameter.FontID))
-            + ' ' + rotToOrient(aParameter.Orientation)
-            + ifElse(aParameter.IsHidden, ' I', ' V')
-            + ' ' + justToStr(aParameter.Justification)
-            + ifElse(fontMgr.Italic(aParameter.FontID), 'I', 'N')
-            + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N')
-            + ' "' + name + '"';
-
-        aCustomParams.Append(buf);
-    end;
+        result := paramToStr(aParameter, aParamIdx, value, '');
 end;
 
 
 procedure processPoly(aPoly : ISch_Polygon; aFilled : Boolean;
-                      aCloseLine : Boolean);
+    aCloseLine : Boolean);
 var
     i, count : Integer;
 begin
@@ -767,8 +766,8 @@ var
     defParams                   : array[0..3] of TDynamicString;
     customParams                : TStringList;
     schObj                      : ISch_GraphicalObject;
-    i                           : Integer;
-    name, designator            : TDynamicString;
+    i, idx                      : Integer;
+    name, designator, buf       : TDynamicString;
 
 begin
     component := aComponent.LibReference;
@@ -811,19 +810,18 @@ begin
     customParams := TStringList.Create();
 
     // Default fields
-    defParams[0] := paramToStr(aComponent, 0, designator);
-    defParams[1] := paramToStr(aComponent, 1, name);
+    defParams[0] := processParameter(aComponent.Designator, aComponent, idx);
+    defParams[1] := autoParamToStr(aComponent, 1, name);
 
     if template then
     begin
-        defParams[2] := paramToStr(aComponent, 2, '${Library Name}:${Footprint Ref}');
-        defParams[3] := paramToStr(aComponent, 3, '${HelpURL}');
+        defParams[2] := autoParamToStr(aComponent, 2, '${Library Name}:${Footprint Ref}');
+        defParams[3] := autoParamToStr(aComponent, 3, '${HelpURL}');
     end
     else
     begin
-
-        defParams[2] := paramToStr(aComponent, 2, '');          // Footprint
-        defParams[3] := paramToStr(aComponent, 3, '');          // Datasheet
+        defParams[2] := autoParamToStr(aComponent, 2, '');          // Footprint
+        defParams[3] := autoParamToStr(aComponent, 3, '');          // Datasheet
     end;
 
     // Custom fields
@@ -836,7 +834,14 @@ begin
 
         while param <> nil do
         begin
-            processParameter(param, aComponent, defParams, customParams);
+            idx := 4 + customParams.Count;
+            buf := processParameter(param, aComponent, idx);
+
+            if idx < 4 then
+               defParams[idx] := buf
+            else
+                customParams.Append(buf);
+
             param := paramIterator.NextSchObject();
         end;
 
