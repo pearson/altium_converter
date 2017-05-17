@@ -177,16 +177,16 @@ end;
 function arcStartPt(aArc : ISch_Arc) : TLocation;
 begin
    result := TLocation;
-   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle / 180 * PI);
-   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle / 180 * PI);
+   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle * PI / 180);
+   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle * PI / 180);
 end;
 
 
 function arcEndPt(aArc : ISch_Arc) : TLocation;
 begin
    result := TLocation;
-   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle / 180 * PI);
-   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle / 180 * PI);
+   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle * PI / 180);
+   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle * PI / 180);
 end;
 
 
@@ -452,6 +452,7 @@ begin
 
     // Correct the pin position
     pos := aPin.Location;
+    pinShape := '';
 
     case aPin.Orientation of
         eRotate0:   pos.x := aPin.Location.x + aPin.PinLength;  // left
@@ -695,8 +696,7 @@ procedure processEllipse(aEllipse : ISch_Ellipse);
 var
    ctrlPts : array[0..3] of TLocation;
    loc : TLocation;
-   rad1, rad2 : Integer;
-   i : Integer;
+   rad1, rad2, i : Integer;
 begin
     loc := aEllipse.Location;
     rad1 := aEllipse.Radius;
@@ -720,14 +720,14 @@ begin
         for i := 0 to 3 do
             ctrlPts[i] := TLocation;
 
-        ctrlPts[0].x := -rad1      + loc.x;
-        ctrlPts[0].y := 0          + loc.y;
-        ctrlPts[1].x := -rad1      + loc.x;
-        ctrlPts[1].y := rad2 * 4 / 3 + loc.y;
-        ctrlPts[2].x := rad1       + loc.x;
-        ctrlPts[2].y := rad2 * 4 / 3 + loc.y;
-        ctrlPts[3].x := rad1       + loc.x;
-        ctrlPts[3].y := 0          + loc.y;
+        ctrlPts[0].x := loc.x - rad1;
+        ctrlPts[0].y := loc.y;
+        ctrlPts[1].x := loc.x - rad1;
+        ctrlPts[1].y := loc.y + rad2 * 4 / 3;
+        ctrlPts[2].x := loc.x + rad1;
+        ctrlPts[2].y := loc.y + rad2 * 4 / 3;
+        ctrlPts[3].x := loc.x + rad1;
+        ctrlPts[3].y := loc.y;
 
         Write(outFile, 'B 4 ' + partMode(aEllipse)
             + ' ' + IntToStr(convertTSize(aEllipse.LineWidth)));
@@ -737,8 +737,8 @@ begin
 
         WriteLn(outFile, ' ' + fillObjToStr(aEllipse));
 
-        ctrlPts[1].y := -rad2 * 4 / 3 + loc.y;
-        ctrlPts[2].y := -rad2 * 4 / 3 + loc.y;
+        ctrlPts[1].y := loc.y - rad2 * 4 / 3;
+        ctrlPts[2].y := loc.y - rad2 * 4 / 3;
 
         Write(outFile, 'B 4 ' + partMode(aEllipse)
             + ' ' + IntToStr(convertTSize(aEllipse.LineWidth)));
@@ -752,13 +752,57 @@ end;
 
 
 procedure processEllipticalArc(aEllipArc : ISch_EllipticalArc);
+var
+    ctrlPts : array[0..360] of TLocation;
+    c : TLocation;      // center point
+    a, b, lambda1, lambda2, i : Integer;
+    sinLambda1, sinLambda2, cosLambda1, cosLambda2, eta1, eta2, tanEtaDiff, alpha : Real;
 begin
-    // For now convert only elliptical arcs that are in fact regular arcs
-    // TODO use Bezier curves to approximate elliptical arcs
-    if aEllipArc.Radius = aEllipArc.SecondaryRadius then
+    a := aEllipArc.Radius;
+    b := aEllipArc.SecondaryRadius;
+
+    // When both radiuses are equal, it is just a common arc
+    if a = b then
         processArc(aEllipArc, false)
     else
-        log(component + ': elliptical arcs are not supported');
+    begin
+        // Approximate with a Bezier curve
+        // see: http://www.spaceroots.org/documents/ellipse/elliptical-arc.pdf
+        c           := aEllipArc.Location;
+        lambda2     := aEllipArc.StartAngle;
+        lambda1     := aEllipArc.EndAngle;
+
+        sinLambda1  := Sin(lambda1 * PI / 180.0);
+        sinLambda2  := Sin(lambda2 * PI / 180.0);
+        cosLambda1  := Cos(lambda1 * PI / 180.0);
+        cosLambda2  := Cos(lambda2 * PI / 180.0);
+        eta1        := ArcTan2(sinLambda1 / b, cosLambda1 / a);
+        eta2        := ArcTan2(sinLambda2 / b, cosLambda2 / a);
+        tanEtaDiff  := Tan((eta2 - eta1) / 2);
+        alpha       := Sin(eta2 - eta1) * (Sqrt(4.0 + 3.0 * tanEtaDiff * tanEtaDiff) - 1.0) / 3.0;
+
+        for i := 0 to 3 do
+            ctrlPts[i] := TLocation;
+
+        ctrlPts[0].x := c.x + a * cosLambda1;
+        ctrlPts[0].y := c.y + b * sinLambda1;
+        ctrlPts[3].x := c.x + a * cosLambda2;
+        ctrlPts[3].y := c.y + b * sinLambda2;
+        ctrlPts[1].x := ctrlPts[0].x + alpha * (-a * Sin(eta1));
+        ctrlPts[1].y := ctrlPts[0].y + alpha * b * Cos(eta1);
+        ctrlPts[2].x := ctrlPts[3].x - alpha * (-a * Sin(eta2));
+        ctrlPts[2].y := ctrlPts[3].y - alpha * b * Cos(eta2);
+
+        Write(outFile, 'B 4 ' + partMode(aEllipArc)
+            + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth)));
+
+        for i := 0 to 3 do
+        begin
+            Write(outFile, ' ' + locToStr(ctrlPts[i]));
+        end;
+
+        WriteLn(outFile, ' N');
+    end;
 end;
 
 
