@@ -26,15 +26,23 @@ uses StrUtils;
 
 var
   logList   : TStringList;
+  // converted component name, used for logging
   component : String;
   outFile   : TextFile;
+  // flag to decide whether we convert a library or generate component templates
   template  : Boolean;
+  // number of component display modes (graphical representations)
+  // (KiCad supports two component representation aka de Morgan)
   modeCount : Integer;
   fontMgr   : ISch_FontManager;
 
 const
+  // default parameter text height
   paramTextSize = 60;
+  // factor to convert coordinates from KiCad to Altium
   scaleK_A = 10000;
+  // number of default fields in KiCad components
+  defParamsNumber = 4;
 
 // not possible in DelphiScript
 //type
@@ -342,7 +350,7 @@ begin
         + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N')
 
         // Custom fields have to store the field name
-        + ifElse(aIndex >= 4, ' "' + aName + '"', '');
+        + ifElse(aIndex >= defParamsNumber, ' "' + aName + '"', '');
 end;
 
 
@@ -763,7 +771,7 @@ procedure processComponent(aComponent : ISch_Component);
 var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
-    defParams                   : array[0..3] of TDynamicString;
+    defParams                   : array[0..defParamsNumber] of TDynamicString;
     customParams                : TStringList;
     schObj                      : ISch_GraphicalObject;
     i, idx                      : Integer;
@@ -834,10 +842,10 @@ begin
 
         while param <> nil do
         begin
-            idx := 4 + customParams.Count;
+            idx := defParamsNumber + customParams.Count;
             buf := processParameter(param, aComponent, idx);
 
-            if idx < 4 then
+            if idx < defParamsNumber then
                defParams[idx] := buf
             else
                 customParams.Append(buf);
