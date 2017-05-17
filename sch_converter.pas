@@ -34,6 +34,7 @@ var
   // number of component display modes (graphical representations)
   // (KiCad supports two component representation aka de Morgan)
   modeCount : Integer;
+  partCount : Integer;
   fontMgr   : ISch_FontManager;
 
 const
@@ -85,7 +86,7 @@ end;
 function partMode(aObject : ISch_GraphicalObject) : TDynamicString;
 begin
     // Currently only two modes are supported by KiCad
-    result := IntToStr(aObject.OwnerPartId)
+    result := ifElse(partCount > 1, IntToStr(aObject.OwnerPartId), '0')
             + ' ' + ifElse(modeCount = 2, IntToStr(aObject.OwnerPartDisplayMode + 1), '0');
 end;
 
@@ -822,6 +823,7 @@ var
 begin
     component := aComponent.LibReference;
     modeCount := aComponent.DisplayModeCount;
+    partCount := aComponent.PartCount;
 
     if modeCount > 2 then
         log('components with more than 2 modes are not supported');
