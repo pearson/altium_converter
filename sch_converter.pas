@@ -463,7 +463,7 @@ begin
             + ' ' + locToStr(pos) + ' ' + IntToStr(scaleToKiCad(aPin.PinLength))
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
-            + ifElse(aPin.ShowName, ' 60 ', ' 0 ')            // TODO get correct size
+            + ifElse(aPin.ShowName, ' 60 ', ' 0 ')          // TODO get correct size
             + partMode(aPin));
 
     case aPin.Electrical of
@@ -574,7 +574,7 @@ begin
 
     Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scaleToKiCad(aArc.Radius))
             + ' ' + IntToStr(aArc.StartAngle * 10) + ' ' + IntToStr(aArc.EndAngle * 10)
-            + ' ' + partMode(aArc) + IntToStr(convertTSize(aArc.LineWidth)));
+            + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth)));
 
     if aFilled then Write(outFile, ' f ') else Write(outFile, ' N ');
 
@@ -703,20 +703,62 @@ end;
 
 
 procedure processEllipse(aEllipse : ISch_Ellipse);
+var
+   ctrlPts : array[0..3] of TLocation;
+   loc : TLocation;
+   rad1, rad2 : Integer;
+   i : Integer;
 begin
-    // For now convert only ellipses that are in fact circles
-    // TODO use Bezier curves to approximate ellipses
-    if aEllipse.Radius = aEllipse.SecondaryRadius then
+    loc := aEllipse.Location;
+    rad1 := aEllipse.Radius;
+    rad2 := aEllipse.SecondaryRadius;
+
+    // Special case: an ellipse which has equal both radiuses is a circle
+    if rad1 = rad2 then
     begin
+        // circle
         // C posx posy radius unit convert thickness cc
-        WriteLn(outFile, 'C ' + locToStr(aEllipse.Location)
-                + ' ' + IntToStr(scaleToKiCad(aEllipse.Radius))
+        WriteLn(outFile, 'C ' + locToStr(loc)
+                + ' ' + IntToStr(scaleToKiCad(rad1))
                 + ' ' + partMode(aEllipse)
-                + IntToStr(convertTSize(aEllipse.LineWidth))
+                + ' ' + IntToStr(convertTSize(aEllipse.LineWidth))
                 + ' ' + fillObjToStr(aEllipse));
     end
     else
-        log(component + ': ellipses are not supported');
+    begin
+        // approximate ellipse with 2 Bezier curves
+
+        for i := 0 to 3 do
+            ctrlPts[i] := TLocation;
+
+        ctrlPts[0].x := -rad1      + loc.x;
+        ctrlPts[0].y := 0          + loc.y;
+        ctrlPts[1].x := -rad1      + loc.x;
+        ctrlPts[1].y := rad2 * 4 / 3 + loc.y;
+        ctrlPts[2].x := rad1       + loc.x;
+        ctrlPts[2].y := rad2 * 4 / 3 + loc.y;
+        ctrlPts[3].x := rad1       + loc.x;
+        ctrlPts[3].y := 0          + loc.y;
+
+        Write(outFile, 'B 4 ' + partMode(aEllipse)
+            + ' ' + IntToStr(convertTSize(aEllipse.LineWidth)));
+
+        for i := 0 to 3 do
+            Write(outFile, ' ' + locToStr(ctrlPts[i]));
+
+        WriteLn(outFile, ' ' + fillObjToStr(aEllipse));
+
+        ctrlPts[1].y := -rad2 * 4 / 3 + loc.y;
+        ctrlPts[2].y := -rad2 * 4 / 3 + loc.y;
+
+        Write(outFile, 'B 4 ' + partMode(aEllipse)
+            + ' ' + IntToStr(convertTSize(aEllipse.LineWidth)));
+
+        for i := 0 to 3 do
+            Write(outFile, ' ' + locToStr(ctrlPts[i]));
+
+        WriteLn(outFile, ' ' + fillObjToStr(aEllipse));
+    end;
 end;
 
 
