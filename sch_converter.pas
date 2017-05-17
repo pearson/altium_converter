@@ -446,7 +446,7 @@ end;
 procedure processPin(aPin : ISch_Pin);
 var
     pos         : TLocation;
-    pinShapeSet : Boolean;
+    pinShape    : TDynamicString;
 begin
     // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
@@ -485,12 +485,7 @@ begin
     end;
 
     // Pin shape
-    // TODO pin shape also depends on the electrical type?
-    pinShapeSet := false;
-
-    {if not pinShapeSet then begin
-        // Assume the pin shape is set, it will be reverted in the default case handler
-        pinShapeSet := true;
+    {if pinShape = '' then begin
         case aPin.Symbol_Inner of
             ePostPonedOutput:
             eOpenCollector:
@@ -503,36 +498,27 @@ begin
             eOpenEmitterPullUp:
             eShiftLeft:
             eOpenCircuitOutput:
-            else pinShapeSet := false;
         end;
     end;}
 
-    if not pinShapeSet then
+    if pinShape = '' then
     begin
-        // Assume the pin shape is set, it will be reverted in the default case handler
-        pinShapeSet := true;
         case aPin.Symbol_InnerEdge of
-            eClock:               Write(outFile, ' C');
-            else                  pinShapeSet := false;
+            eClock: pinShape := 'C';
         end;
     end;
 
-    if not pinShapeSet then
+    if pinShape = '' then
     begin
-        // Assume the pin shape is set, it will be reverted in the default case handler
-        pinShapeSet := true;
         case aPin.Symbol_OuterEdge of
-            eDot:                 Write(outFile, ' I');
-            eActiveLowInput:      Write(outFile, ' L');
-            eActiveLowOutput:     Write(outFile, ' V');
-            else                  pinShapeSet := false;
+            eDot:                 pinShape := 'I';
+            eActiveLowInput:      pinShape := 'L';
+            eActiveLowOutput:     pinShape := 'V';
         end;
     end;
 
-    {if not pinShapeSet then
+    {if pinShape = '' then
     begin
-        // Assume the pin shape is set, it will be reverted in the default case handler
-        pinShapeSet := true;
         case aPin.Symbol_Outer of
         //eRightLeftSignalFlow:
         //eAnalogSignalIn:
@@ -540,11 +526,13 @@ begin
         //eDigitalSignalIn:
         //eLeftRightSignalFlow:
         //eBidirectionalSignalFlow:
-        //else pinShapeSet := false;
         end;
     end;}
 
-    WriteLn(outFile, '');
+    if aPin.IsHidden then
+        pinShape := 'N' + pinShape;
+
+    WriteLn(outFile, ifElse(pinShape <> '', ' ' + pinShape, ''));
 end;
 
 
