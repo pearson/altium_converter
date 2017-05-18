@@ -1041,9 +1041,25 @@ begin
     libOutPath := ExtractFileDir(schLib.DocumentName) + '\';
     logList := TStringList.Create();
 
+    if libName = '' then
+    begin
+        ShowMessage('Empty library name, aborting');
+        Exit;
+    end;
+
     log('Converting ' + schLib.DocumentName);
 
-    if not template then
+    if template then
+    begin
+        // Create a directory to keep templates
+        libOutPath := libOutPath + libName + '\';
+
+        if DirectoryExists(libOutPath) then
+             RmDir(libOutPath);
+
+        ForceDirectories(libOutPath);
+    end
+    else
     begin
         AssignFile(outFile, libOutPath + fixFileName(libName) + '.lib');
         Rewrite(outFile);
