@@ -39,11 +39,11 @@ var
 
 const
   // default parameter text height
-  paramTextSize = 60;
+  PARAM_TEXT_SIZE = 60;
   // factor to convert coordinates from KiCad to Altium
-  scaleK_A = 10000;
+  SCALE_KI_TO_ALT = 10000;
   // number of default fields in KiCad components
-  defParamsNumber = 4;
+  DEF_PARAMS_NUMBER = 4;
 
 // not possible in DelphiScript
 //type
@@ -73,13 +73,13 @@ end;
 
 function scaleToKiCad(aCoord : Integer) : Integer;
 begin
-    result := aCoord / scaleK_A;
+    result := aCoord / SCALE_KI_TO_ALT;
 end;
 
 
 function scaleToAltium(aCoord : Integer) : Integer;
 begin
-    result := aCoord * scaleK_A;
+    result := aCoord * SCALE_KI_TO_ALT;
 end;
 
 
@@ -330,10 +330,10 @@ var
 begin
     paramPos := TLocation;
     paramPos.x := aComponent.Location.x;
-    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(paramTextSize * (aIndex * 1.5));
+    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(PARAM_TEXT_SIZE * (aIndex * 1.5));
 
     result := 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
-            + locToStr(paramPos) + ' ' + IntToStr(paramTextSize) + ' H I L CNN';
+            + locToStr(paramPos) + ' ' + IntToStr(PARAM_TEXT_SIZE) + ' H I L CNN';
 end;
 
 
@@ -351,7 +351,7 @@ begin
         + ifElse(fontMgr.Bold(aParameter.FontID), 'B', 'N')
 
         // Custom fields have to store the field name
-        + ifElse(aIndex >= defParamsNumber, ' "' + aName + '"', '');
+        + ifElse(aIndex >= DEF_PARAMS_NUMBER, ' "' + aName + '"', '');
 end;
 
 
@@ -753,10 +753,16 @@ end;
 
 procedure processEllipticalArc(aEllipArc : ISch_EllipticalArc);
 var
-    ctrlPts : array[0..360] of TLocation;
-    c : TLocation;      // center point
-    a, b, lambda1, lambda2, i : Integer;
-    sinLambda1, sinLambda2, cosLambda1, cosLambda2, eta1, eta2, tanEtaDiff, alpha : Real;
+    c : TLocation;
+    a, b, i, step, lineSegments : Integer;
+    lambda1, lambda2, angleStep : Real;
+    sinLambda1, sinLambda2, cosLambda1, cosLambda2 : Real;
+
+    ctrlPts : array[0..3] of TLocation;     // Bezier curve control points
+    eta1, eta2, tanEtaDiff, alpha : Real;
+const
+    // Number of Bezier curves used for approximation
+    BEZ_SEGMENTS = 2;
 begin
     a := aEllipArc.Radius;
     b := aEllipArc.SecondaryRadius;
@@ -766,42 +772,77 @@ begin
         processArc(aEllipArc, false)
     else
     begin
-        // Approximate with a Bezier curve
-        // see: http://www.spaceroots.org/documents/ellipse/elliptical-arc.pdf
-        c           := aEllipArc.Location;
-        lambda2     := aEllipArc.StartAngle;
-        lambda1     := aEllipArc.EndAngle;
+        // TODO estimate the number of line segments for smooth appearance
+        lineSegments := BEZ_SEGMENTS;
+        {lineSegments := 16;}
 
-        sinLambda1  := Sin(lambda1 * PI / 180.0);
-        sinLambda2  := Sin(lambda2 * PI / 180.0);
-        cosLambda1  := Cos(lambda1 * PI / 180.0);
-        cosLambda2  := Cos(lambda2 * PI / 180.0);
-        eta1        := ArcTan2(sinLambda1 / b, cosLambda1 / a);
-        eta2        := ArcTan2(sinLambda2 / b, cosLambda2 / a);
-        tanEtaDiff  := Tan((eta2 - eta1) / 2);
-        alpha       := Sin(eta2 - eta1) * (Sqrt(4.0 + 3.0 * tanEtaDiff * tanEtaDiff) - 1.0) / 3.0;
+        angleStep := aEllipArc.EndAngle - aEllipArc.StartAngle;
 
+        if angleStep < 0.0 then
+            angleStep := angleStep + 360.0;
+
+        angleStep := angleStep / lineSegments;
+
+
+        // Linear approximation
+        {Write(outFile, 'P ' + IntToStr(lineSegments + 1)  + ' ' + partMode(aEllipArc)
+            + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth)));
+
+        lambda1 := aEllipArc.StartAngle;
+        c := TLocation;
+
+        for step := 0 to lineSegments do
+        begin
+            c.x := aEllipArc.Location.x + a * Cos(lambda1 * PI / 180.0);
+            c.y := aEllipArc.Location.y + b * Sin(lambda1 * PI / 180.0);
+            Write(outFile, ' ' + locToStr(c));
+            lambda1 := lambda1 + angleStep;
+        end;
+
+        WriteLn(outFile, ' N');}
+
+
+        // Bezier curves approximation
         for i := 0 to 3 do
             ctrlPts[i] := TLocation;
 
-        ctrlPts[0].x := c.x + a * cosLambda1;
-        ctrlPts[0].y := c.y + b * sinLambda1;
-        ctrlPts[3].x := c.x + a * cosLambda2;
-        ctrlPts[3].y := c.y + b * sinLambda2;
-        ctrlPts[1].x := ctrlPts[0].x + alpha * (-a * Sin(eta1));
-        ctrlPts[1].y := ctrlPts[0].y + alpha * b * Cos(eta1);
-        ctrlPts[2].x := ctrlPts[3].x - alpha * (-a * Sin(eta2));
-        ctrlPts[2].y := ctrlPts[3].y - alpha * b * Cos(eta2);
+        lambda1 := aEllipArc.StartAngle;
+        lambda2 := aEllipArc.StartAngle + angleStep;
+        c       := aEllipArc.Location;
 
-        Write(outFile, 'B 4 ' + partMode(aEllipArc)
-            + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth)));
-
-        for i := 0 to 3 do
+        for step := 1 to lineSegments do
         begin
-            Write(outFile, ' ' + locToStr(ctrlPts[i]));
-        end;
+            // Approximate with a Bezier curve
+            // see: http://www.spaceroots.org/documents/ellipse/elliptical-arc.pdf
+            sinLambda1  := Sin(lambda1 * PI / 180.0);
+            sinLambda2  := Sin(lambda2 * PI / 180.0);
+            cosLambda1  := Cos(lambda1 * PI / 180.0);
+            cosLambda2  := Cos(lambda2 * PI / 180.0);
+            eta1        := ArcTan2(sinLambda1 / b, cosLambda1 / a);
+            eta2        := ArcTan2(sinLambda2 / b, cosLambda2 / a);
+            tanEtaDiff  := Tan((eta2 - eta1) / 2);
+            alpha       := Sin(eta2 - eta1) * (Sqrt(4.0 + 3.0 * tanEtaDiff * tanEtaDiff) - 1.0) / 3.0;
 
-        WriteLn(outFile, ' N');
+            ctrlPts[0].x := c.x + a * cosLambda1;
+            ctrlPts[0].y := c.y + b * sinLambda1;
+            ctrlPts[3].x := c.x + a * cosLambda2;
+            ctrlPts[3].y := c.y + b * sinLambda2;
+            ctrlPts[1].x := ctrlPts[0].x + alpha * (-a * Sin(eta1));
+            ctrlPts[1].y := ctrlPts[0].y + alpha * b * Cos(eta1);
+            ctrlPts[2].x := ctrlPts[3].x - alpha * (-a * Sin(eta2));
+            ctrlPts[2].y := ctrlPts[3].y - alpha * b * Cos(eta2);
+
+            Write(outFile, 'B 4 ' + partMode(aEllipArc)
+                + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth)));
+
+            for i := 0 to 3 do
+                Write(outFile, ' ' + locToStr(ctrlPts[i]));
+
+            WriteLn(outFile, ' N');
+
+            lambda1 := lambda2;
+            lambda2 := lambda2 + angleStep;
+        end;
     end;
 end;
 
@@ -846,7 +887,7 @@ procedure processComponent(aComponent : ISch_Component);
 var
     objIterator, paramIterator  : ISch_Iterator;
     param                       : ISch_Parameter;
-    defParams                   : array[0..defParamsNumber] of TDynamicString;
+    defParams                   : array[0..DEF_PARAMS_NUMBER] of TDynamicString;
     customParams                : TStringList;
     schObj                      : ISch_GraphicalObject;
     i, idx                      : Integer;
@@ -875,7 +916,7 @@ begin
     // TODO swappable?
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
     WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 '
-        + IntToStr(paramTextSize) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' F N');
+        + IntToStr(PARAM_TEXT_SIZE) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' F N');
 
 
     // Aliases
@@ -918,10 +959,10 @@ begin
 
         while param <> nil do
         begin
-            idx := defParamsNumber + customParams.Count;
+            idx := DEF_PARAMS_NUMBER + customParams.Count;
             buf := processParameter(param, aComponent, idx);
 
-            if idx < defParamsNumber then
+            if idx < DEF_PARAMS_NUMBER then
                defParams[idx] := buf
             else
                 customParams.Append(buf);
