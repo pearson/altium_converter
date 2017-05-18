@@ -177,16 +177,16 @@ end;
 function arcStartPt(aArc : ISch_Arc) : TLocation;
 begin
    result := TLocation;
-   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle * PI / 180);
-   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle * PI / 180);
+   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.StartAngle * PI / 180.0);
+   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.StartAngle * PI / 180.0);
 end;
 
 
 function arcEndPt(aArc : ISch_Arc) : TLocation;
 begin
    result := TLocation;
-   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle * PI / 180);
-   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle * PI / 180);
+   result.x := aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle * PI / 180.0);
+   result.y := aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle * PI / 180.0);
 end;
 
 
@@ -755,11 +755,11 @@ procedure processEllipticalArc(aEllipArc : ISch_EllipticalArc);
 var
     c : TLocation;
     a, b, i, step, lineSegments : Integer;
-    lambda1, lambda2, angleStep : Real;
-    sinLambda1, sinLambda2, cosLambda1, cosLambda2 : Real;
+    lambda1, lambda2, angleStep : TAngle;
+    sinLambda1, sinLambda2, cosLambda1, cosLambda2 : Double;
 
     ctrlPts : array[0..3] of TLocation;     // Bezier curve control points
-    eta1, eta2, tanEtaDiff, alpha : Real;
+    eta1, eta2, tanEtaDiff, alpha : Double;
 const
     // Number of Bezier curves used for approximation
     BEZ_SEGMENTS = 2;
@@ -772,9 +772,8 @@ begin
         processArc(aEllipArc, false)
     else
     begin
-        // TODO estimate the number of line segments for smooth appearance
         lineSegments := BEZ_SEGMENTS;
-        {lineSegments := 16;}
+
 
         angleStep := aEllipArc.EndAngle - aEllipArc.StartAngle;
 
@@ -823,10 +822,10 @@ begin
             tanEtaDiff  := Tan((eta2 - eta1) / 2);
             alpha       := Sin(eta2 - eta1) * (Sqrt(4.0 + 3.0 * tanEtaDiff * tanEtaDiff) - 1.0) / 3.0;
 
-            ctrlPts[0].x := c.x + a * cosLambda1;
-            ctrlPts[0].y := c.y + b * sinLambda1;
-            ctrlPts[3].x := c.x + a * cosLambda2;
-            ctrlPts[3].y := c.y + b * sinLambda2;
+            ctrlPts[0].x := c.x + a * Cos(eta1);
+            ctrlPts[0].y := c.y + b * Sin(eta1);
+            ctrlPts[3].x := c.x + a * Cos(eta2);
+            ctrlPts[3].y := c.y + b * Sin(eta2);
             ctrlPts[1].x := ctrlPts[0].x + alpha * (-a * Sin(eta1));
             ctrlPts[1].y := ctrlPts[0].y + alpha * b * Cos(eta1);
             ctrlPts[2].x := ctrlPts[3].x - alpha * (-a * Sin(eta2));
