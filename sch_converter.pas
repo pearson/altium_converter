@@ -822,14 +822,14 @@ begin
             tanEtaDiff  := Tan((eta2 - eta1) / 2);
             alpha       := Sin(eta2 - eta1) * (Sqrt(4.0 + 3.0 * tanEtaDiff * tanEtaDiff) - 1.0) / 3.0;
 
-            ctrlPts[0].x := c.x + a * Cos(eta1);
-            ctrlPts[0].y := c.y + b * Sin(eta1);
-            ctrlPts[3].x := c.x + a * Cos(eta2);
-            ctrlPts[3].y := c.y + b * Sin(eta2);
-            ctrlPts[1].x := ctrlPts[0].x + alpha * (-a * Sin(eta1));
-            ctrlPts[1].y := ctrlPts[0].y + alpha * b * Cos(eta1);
-            ctrlPts[2].x := ctrlPts[3].x - alpha * (-a * Sin(eta2));
-            ctrlPts[2].y := ctrlPts[3].y - alpha * b * Cos(eta2);
+            ctrlPts[0].x := Round(c.x + a * Cos(eta1));
+            ctrlPts[0].y := Round(c.y + b * Sin(eta1));
+            ctrlPts[3].x := Round(c.x + a * Cos(eta2));
+            ctrlPts[3].y := Round(c.y + b * Sin(eta2));
+            ctrlPts[1].x := Round(ctrlPts[0].x - alpha * a * Sin(eta1));
+            ctrlPts[1].y := Round(ctrlPts[0].y + alpha * b * Cos(eta1));
+            ctrlPts[2].x := Round(ctrlPts[3].x + alpha * a * Sin(eta2));
+            ctrlPts[2].y := Round(ctrlPts[3].y - alpha * b * Cos(eta2));
 
             Write(outFile, 'B 4 ' + partMode(aEllipArc)
                 + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth)));
@@ -1011,26 +1011,25 @@ var
   schLib        : ISch_Lib;
   schIterator   : ISch_Iterator;
   compReader    : ILibCompInfoReader;
+  compNumber    : Integer;
 
   libName       : TDynamicString;
   libOutPath    : TString;
-
 begin
     template := aTemplate;
     fontMgr := SchServer.FontManager;
-
-    if UpperCase(Client.CurrentView.OwnerDocument.Kind) <> 'SCHLIB' then
-    begin
-        ShowWarning('This is not a Schematic Library document!');
-        exit;
-    end;
-
     schLib := SchServer.GetCurrentSchDocument;
-    if schLib = nil then
-        exit;
 
-    compReader := SchServer.CreateLibCompInfoReader(schLib.DocumentName);
-    compReader.ReadAllComponentInfo();
+    if schLib = nil then
+        Exit;
+
+    try
+        compReader := SchServer.CreateLibCompInfoReader(schLib.DocumentName);
+        compReader.ReadAllComponentInfo();
+        compNumber := compReader.NumComponentInfos();
+    finally
+        SchServer.DestroyCompInfoReader(compReader);
+    end;
 
     // Set encoding to UTF-8
     // https://msdn.microsoft.com/en-us/library/windows/desktop/dd317756(v=vs.85).aspx
@@ -1055,7 +1054,7 @@ begin
         libOutPath := libOutPath + libName + '\';
 
         if DirectoryExists(libOutPath) then
-             RmDir(libOutPath);
+            RemoveDir(libOutPath);
 
         ForceDirectories(libOutPath);
     end
@@ -1069,7 +1068,7 @@ begin
     // Iterate through components in the library
     schIterator := schLib.SchLibIterator_Create;
     schIterator.AddFilter_ObjectSet(MkSet(eSchComponent));
-    ProgressInit('Converting library ' + schLib.DocumentName, compReader.NumComponentInfos);
+    ProgressInit('Converting library ' + schLib.DocumentName, compNumber);
 
     try
         component := schIterator.FirstSchObject;
@@ -1112,7 +1111,99 @@ begin
     logList.Free();
 
     ProgressFinish(0);
-    ShowMessage('Saved in ' + libOutPath);
+    //ShowMessage('Saved in ' + libOutPath);
+end;
+
+
+procedure processFiles(aTemplate : Boolean);
+var
+    fileOpenDialog : TFileOpenDialog;
+    i : Integer;
+    Files : TStringList;
+    doc : IServerDocument;
+begin
+     doc := nil;
+
+     if Client.CurrentView <> nil then
+         doc := Client.CurrentView.OwnerDocument;
+
+    if (doc <> nil) and (UpperCase(doc.Kind) = 'SCHLIB') then
+    begin
+        // Process only current library
+        processLibrary(aTemplate);
+    end
+    else
+    begin
+        // Display a file open dialog and pick a library to be converted
+        {fileOpenDialog := TFileOpenDialog.Create(nil);
+        fileOpenDialog.Title := 'Select schematic symbol libraries';
+
+        if fileOpenDialog.Execute() then
+        begin
+            for i := 0 to fileOpen.Files.Count do
+            begin
+                doc := Client.OpenDocument('SchLib', fileOpen.Files[i]);
+
+                if doc <> nil then
+                begin
+                    Client.ShowDocument(doc);
+                    processLibrary(aTemplate);
+                    Client.CloseDocument(doc);
+                end;
+            end;
+        end;
+
+        fileOpenDialog.Free();}
+
+
+        // if file browser does not work, use the following way of batch processing
+        {Files := TStringList.Create();
+        Files.Append('Analog & Interface.SchLib');
+        Files.Append('Bonding.SchLib');
+        Files.Append('Capacitors.SchLib');
+        Files.Append('Connectors.SchLib');
+        Files.Append('Crystals & Oscillators.SchLib');
+        Files.Append('DC-DC Converters.SchLib');
+        Files.Append('Diodes.SchLib');
+        Files.Append('Fasteners & Fixing.SchLib');
+        Files.Append('Fasteners & Fixings.SchLib');
+        Files.Append('Fuses.SchLib');
+        Files.Append('Graphical Shematic Symbol.SchLib');
+        Files.Append('Heat-Sinks.SchLib');
+        Files.Append('Inductors & Transformers.SchLib');
+        Files.Append('LEDs & Displays.SchLib');
+        Files.Append('Logic.SchLib');
+        Files.Append('Metal Screening Box.SchLib');
+        Files.Append('Operational Amplifiers.SchLib');
+        Files.Append('Optocouplers.SchLib');
+        Files.Append('PCB Modules.SchLib');
+        Files.Append('Pads.SchLib');
+        Files.Append('Power Supplies.SchLib');
+        Files.Append('Regulators.SchLib');
+        Files.Append('Relays.SchLib');
+        Files.Append('Resistors.SchLib');
+        Files.Append('Sensors.SchLib');
+        Files.Append('Sockets.SchLib');
+        Files.Append('Standard Logic.SchLib');
+        Files.Append('Switches.SchLib');
+        Files.Append('Transistors.SchLib');
+
+        for i := 0 to Files.Count() - 1 do
+        begin
+            doc := Client.OpenDocument('SchLib', 'Z:\home\kicadlib-gen\templates\' + Files[i]);
+
+            if doc <> nil then
+            begin
+                Client.ShowDocument(doc);
+                processLibrary(aTemplate);
+                Client.CloseDocument(doc);
+            end;
+        end;
+
+        Files.Free();}
+
+        ShowMessage('Finished!');
+    end;
 end;
 
 
@@ -1121,7 +1212,7 @@ begin
     if SchServer = nil then
         exit;
 
-    processLibrary(false);
+    processFiles(false);
 end;
 
 
@@ -1130,5 +1221,5 @@ begin
     if SchServer = nil then
         exit;
 
-    processLibrary(true);
+    processFiles(true);
 end;
