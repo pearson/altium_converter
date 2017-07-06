@@ -38,10 +38,6 @@ var
   fontMgr   : ISch_FontManager;
 
 const
-  // default parameter text height
-  PARAM_TEXT_SIZE = 60;
-  // factor to convert coordinates from KiCad to Altium
-  SCALE_KI_TO_ALT = 10000;
   // number of default fields in KiCad components
   DEF_PARAMS_NUMBER = 4;
 
@@ -61,57 +57,11 @@ begin
 end;
 
 
-function ifElse(aCondition : Boolean; aStringTrue : TDynamicString;
-    aStringFalse : TDynamicString) : TDynamicString;
-begin
-    if aCondition then
-        result := aStringTrue
-    else
-        result := aStringFalse;
-end;
-
-
-function scaleToKiCad(aCoord : Integer) : Integer;
-begin
-    result := aCoord / SCALE_KI_TO_ALT;
-end;
-
-
-function scaleToAltium(aCoord : Integer) : Integer;
-begin
-    result := aCoord * SCALE_KI_TO_ALT;
-end;
-
-
 function partMode(aObject : ISch_GraphicalObject) : TDynamicString;
 begin
     // Currently only two modes are supported by KiCad
     result := ifElse(partCount > 1, IntToStr(aObject.OwnerPartId), '0')
             + ' ' + ifElse(modeCount = 2, IntToStr(aObject.OwnerPartDisplayMode + 1), '0');
-end;
-
-
-function convertTSize(aSize : TSize) : Integer;
-begin
-    case aSize of
-        //eSmallest: result := 0;
-        eSmall:    result := 10;
-        eMedium:   result := 20;
-        eLarge:    result := 30;
-        else       result := 0;
-    end;
-end;
-
-
-function isDark(aColor : TColor) : Boolean;
-var
-    brightness : Integer;
-begin
-    brightness := (aColor and $FF)
-                + ((aColor shr 8) and $FF)
-                + ((aColor shr 16) and $FF);
-
-    result := (brightness < 128 * 3);
 end;
 
 
@@ -141,28 +91,6 @@ begin
 end;
 
 
-function rotToInt(aRotation : TRotationBy90) : Integer;
-begin
-    case aRotation of
-        eRotate0:   result := 0;
-        eRotate90:  result := 900;
-        eRotate180: result := 1800;
-        eRotate270: result := 2700;
-    end;
-end;
-
-
-function rotToInt90(aRotation : TRotationBy90) : Integer;
-begin
-    case aRotation of
-        eRotate0:   result := 0;
-        eRotate90:  result := 900;
-        eRotate180: result := 0;
-        eRotate270: result := 900;
-    end;
-end;
-
-
 function rotToOrient(aRotation : TRotationBy90) : Char;
 begin
     case aRotation of
@@ -187,12 +115,6 @@ begin
    result := TLocation;
    result.x := aArc.Location.x + aArc.Radius * Cos(aArc.EndAngle * PI / 180.0);
    result.y := aArc.Location.y + aArc.Radius * Sin(aArc.EndAngle * PI / 180.0);
-end;
-
-
-function locToStr(aLocation : TLocation) : TDynamicString;
-begin
-    result := IntToStr(scaleToKiCad(aLocation.x)) + ' ' + IntToStr(scaleToKiCad(aLocation.y));
 end;
 
 
@@ -289,21 +211,6 @@ begin
 
 
         Inc(i);
-    end;
-end;
-
-
-function fixFileName(aName : TDynamicString) : TDynamicString;
-var
-    i : Integer;
-const
-    forbiddenChars = '<>:"\\/|?*';
-begin
-    result := aName;
-
-    for i := 0 to Length(forbiddenChars) - 1 do
-    begin
-        result := StringReplace(result, forbiddenChars[i], '', -1);
     end;
 end;
 
