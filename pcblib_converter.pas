@@ -209,6 +209,52 @@ begin
 end;
 
 
+function shapeToStr(aShape : TShape) : TDynamicString;
+begin
+    case aShape of
+        eNoShape:               log(footprint + ': invalid shape (eNoShape)');
+
+        eRoundedRectangular,    // TODO is it ok?
+        eRoundRectShape:        result := 'roundrect';
+
+        eRectangular:           result := 'rect';
+
+        eOctagonal:
+        begin
+            log(footprint + ': octagonal shape is approximated with a round rectangle');
+            result := 'roundrect';
+        end;
+
+        eRounded,
+        eCircleShape:           result := 'circle';
+
+        eArcShape:              log(footrpint + ': arc shape is not supported');
+        eTerminator:            log(footprint + ': terminator shape is not supported');
+        eRotatedRectShape:      log(footprint + ': rotated rectangular shape is not supported')
+    end;
+end;
+
+
+function padTypeToStr(aPad : IPCB_Pad) : TDynamicString;
+begin
+    // thru_hole, smd, connect, np_thru_hole
+    if aPad.IsSurfaceMount then
+    begin
+        result := 'smd';
+    end
+    else if aPad.Plated then
+    begin
+        result := 'thru_hole';
+    end
+    else
+    begin
+        result := 'np_thru_hole';
+    end;
+
+    // TODO check for paste layer and select 'connect' if not present?
+end;
+
+
 function fixName(aName : TDynamicString) : TDynamicString;
 var
     i, len  : Integer;
@@ -299,91 +345,200 @@ begin
 end;
 
 
-function layerToString(aLayer : TV6_Layer) : TPCB_String;
+function layerToString(aLayer : TLayer) : TPCB_String;
 begin                                    // TODO missing layers
     case aLayer of
-        eTop:            result := 'F.Cu';
-        eBottom:         result := 'B.Cu';
-        eTopPaste:       result := 'F.Paste';
-        eBottomPaste:    result := 'B.Paste';
-        eTopOverlay:     result := 'F.SilkS';
-        eBottomOverlay:  result := 'B.SilkS';
-        else             result := 'Dwgs.User';
+        // these layers have direct counterparts
+        eTopLayer:           result := 'F.Cu';
+        eMidLayer1:          result := 'In1.Cu';
+        eMidLayer2:          result := 'In2.Cu';
+        eMidLayer3:          result := 'In3.Cu';
+        eMidLayer4:          result := 'In4.Cu';
+        eMidLayer5:          result := 'In5.Cu';
+        eMidLayer6:          result := 'In6.Cu';
+        eMidLayer7:          result := 'In7.Cu';
+        eMidLayer8:          result := 'In8.Cu';
+        eMidLayer9:          result := 'In9.Cu';
+        eMidLayer10:         result := 'In10.Cu';
+        eMidLayer11:         result := 'In11.Cu';
+        eMidLayer12:         result := 'In12.Cu';
+        eMidLayer13:         result := 'In13.Cu';
+        eMidLayer14:         result := 'In14.Cu';
+        eMidLayer15:         result := 'In15.Cu';
+        eMidLayer16:         result := 'In16.Cu';
+        eMidLayer17:         result := 'In17.Cu';
+        eMidLayer18:         result := 'In18.Cu';
+        eMidLayer19:         result := 'In19.Cu';
+        eMidLayer20:         result := 'In20.Cu';
+        eMidLayer21:         result := 'In21.Cu';
+        eMidLayer22:         result := 'In22.Cu';
+        eMidLayer23:         result := 'In23.Cu';
+        eMidLayer24:         result := 'In24.Cu';
+        eMidLayer25:         result := 'In25.Cu';
+        eMidLayer26:         result := 'In26.Cu';
+        eMidLayer27:         result := 'In27.Cu';
+        eMidLayer28:         result := 'In28.Cu';
+        eMidLayer29:         result := 'In29.Cu';
+        eMidLayer30:         result := 'In30.Cu';
+        eBottomLayer:        result := 'B.Cu';
+        eTopOverlay:         result := 'F.SilkS';
+        eBottomOverlay:      result := 'B.SilkS';
+        eTopPaste:           result := 'F.Paste';
+        eBottomPaste:        result := 'B.Paste';
+        eTopSolder:          result := 'F.Mask';
+        eBottomSolder:       result := 'B.Mask';
+
+    // arbitrary mapping, may need adjustments
+        eMechanical1:        result := 'Dwgs.User';
+        eMechanical2:        result := 'Cmts.User';
+        eMechanical3:        result := 'Eco1.User';
+        eMechanical4:        result := 'Eco2.User';
+
+    // unsupported layers
+    // unmapped layers in KiCad that might be used here:
+    // Edge.Cuts, Margin, {F,B}.CrtYd, {F,B}.Adhes, {F,B}.Fab
+        eNoLayer,
+        eInternalPlane1,
+        eInternalPlane2,
+        eInternalPlane3,
+        eInternalPlane4,
+        eInternalPlane5,
+        eInternalPlane6,
+        eInternalPlane7,
+        eInternalPlane8,
+        eInternalPlane9,
+        eInternalPlane10,
+        eInternalPlane11,
+        eInternalPlane12,
+        eInternalPlane13,
+        eInternalPlane14,
+        eInternalPlane15,
+        eInternalPlane16,
+        eDrillGuide,
+        eKeepOutLayer,
+        eMechanical5,
+        eMechanical6,
+        eMechanical7,
+        eMechanical8,
+        eMechanical9,
+        eMechanical10,
+        eMechanical11,
+        eMechanical12,
+        eMechanical13,
+        eMechanical14,
+        eMechanical15,
+        eMechanical16,
+        eDrillDrawing,
+        eMultiLayer,
+        eConnectLayer,
+        eBackGroundLayer,
+        eDRCErrorLayer,
+        eHighlightLayer,
+        eGridColor1,
+        eGridColor10,
+        ePadHoleLayer,
+        eViaHoleLayer:
+        log(component + ': unknown layer');
     end;
 end;
 
 
 procedure processText(aText : IPCB_Text);
 begin
-//    TextObj.XLocation := Sheet.SheetX + MilsToCoord(500);
-//    TextObj.YLocation := Sheet.SheetY + MilsToCoord(500);
-//    TextObj.Layer     := eTopOverlay;
-//    TextObj.Text      := 'Traditional Protel Text';
-//    TextObj.Size       := MilsToCoord(90);   // sets the height of the text.
+    // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
+    //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
+    // )
 
-// (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
-//     (effects (font (size 1.397 1.27) (thickness 0.2032)))
-// )
-           // TODO scale real type
+    if aText.Width.X <> aText.Width.Y then
+        log(footprint + ': text width has to be the same for X and Y axes');
+
+    // TODO scale real type
     // TODO reference value
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
          + IntToStr(scaleToKiCad(aText.XLocation)) + ' '
          + IntToStr(scaleToKiCad(aText.YLocation)) + ')'
          + ' (layer ' + layerToString(aText.Layer) + ')');  // TODO hide
     WriteLn(outFile, '    (effects (font (size ' + IntToStr(scaleToKiCad(aText.Size))
-         + ' ' + IntToStr(scaleToKiCad(aText.Size)) + ') (thickness 0.2032)))');     // TODO thickness
+         + ' ' + IntToStr(scaleToKiCad(aText.Size)) + ')'
+         + ' (thickness ' + IntToStr(scaleToKiCad(aText.Width.X)) + ')))');
     WriteLn(outFile, ')');
 end;
 
 
 procedure processPad(aPad : IPCB_Pad);
 begin
-     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
+    // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
-//    NewPad.X        := MilsToCoord(0);
-//    NewPad.Y        := MilsToCoord(0);
-//    NewPad.TopXSize := MilsToCoord(62);
-//    NewPad.TopYSize := MilsToCoord(62);
-//    NewPad.HoleSize := MilsToCoord(28);
-//    NewPad.Layer    := eMultiLayer;
-//    NewPad.Name     := '1';
+    if aPad.Mode <> ePadMode_Simple then
+        log(footprint + ': only simple pads are supported - ' + aPad.Name);
 
-    // TODO smd rect
-    WriteLn(outFile, '(pad ' + aPad.Name + ' smd rect (at '
-         + IntToStr(scaleToKiCad(aPad.X)) + ' '
-         + IntToStr(scaleToKiCad(aPad.Y)) + ') '
-         + '(size ' + IntToStr(scaleToKiCad(aPad.TopXSize))
-         + ' ' + IntToStr(scaleToKiCad(aPad.TopYSize)) + ') '
-         + '(layers F.Cu F.Paste F.Mask))');
-         // TODO layers
+    Write(outFile, '(pad ' + aPad.Name
+    + ' ' + padTypeToStr(aPad)
+    + ' ' + shapeToStr(aPad.TopShape)
+    + ' (at ' + IntToStr(scaleToKiCad(aPad.X)) + ' '
+    +       IntToStr(scaleToKiCad(aPad.Y)) + ') '
+    + '(size ' + IntToStr(scaleToKiCad(aPad.TopXSize)) + ' '
+    +       IntToStr(scaleToKiCad(aPad.TopYSize)) + ')');
+
+    // TODO layers
+    if aPad.IsSurfaceMount then
+    begin
+        WriteLn(outFile, '(layers F.Cu F.Paste F.Mask))');
+    end
+    else
+    begin
+        if aPad.HoleRotation <> 0 then
+            log(footprint + ': rotated holes are not supported');
+
+        Write(outFile, '(drill ');
+
+        case aPad.HoleType of
+            eRoundHole:
+                Write(outFile, IntToStr(scaleToKiCad(aPad.HoleSize)));
+            eSquareHole:
+            begin
+                log(footprint + ': square hole approximated with an oval hole');
+                Write(outFile, 'oval ' + locToStr(aPad.HoleSize));
+            end;
+            eSlotHole:
+                Write(outFile, 'oval ' + locToStr(aPad.HoleSize));  // TODO merge
+        end;
+        Write(outFile, ')');
+        // TODO drill offset
+
+        WriteLn(outFile, ' (layers *.Cu *.Paste *.Mask))')
+    end;
+
+    // TODO clearance, zone_connect, solder_paste/mask_margin, thermal_gap, thermal_width
+    // zone_connect -> PlaneConenctionStyleForLayer?
 end;
 
 
 procedure processObject(aObject : IPCB_Primitive);
 begin
     case aObject.ObjectId of
-        //eNoObject           : Result := 'Any Object';
-        //eArcObject          : Result := 'Arc';
-        ePadObject:   processPad(aObject);
-        //eViaObject          : Result := 'Via';
-        //eTrackObject        : Result := 'Track';
-        eTextObject : processText(aObject);
-        //eFillObject         : Result := 'Fill';
-        //eConnectionObject   : Result := 'Connection';
-        //eNetObject          : Result := 'Net';
-        //eComponentObject    : Result := 'Component';
-        //ePolyObject         : Result := 'Polygon';
-        //eDimensionObject    : Result := 'Dimension';
-        //eCoordinateObject   : Result := 'Coordinate';
-        //eClassObject        : Result := 'Class';
-        //eRuleObject         : Result := 'Rule';
-        //eFromToObject       : Result := 'FromTo';
-        //eViolationObject    : Result := 'Violation';
-        //eEmbeddedObject     : Result := 'Embedded';
-        //eTraceObject        : Result := 'Trace';
-        //eSpareViaObject     : Result := 'Spare Via';
-        //eBoardObject        : Result := 'Board';
-        //eBoardOutlineObject : Result := 'Board Outline';
+        eNoObject:              log(footprint + ': contains an invalid object (eNoObject)');
+        eArcObject:             log(footprint + ': arcs are not supported');
+        ePadObject:             processPad(aObject);
+        eViaObject:             log(footprint + ': vias are not supported');
+        eTrackObject:           log(footprint + ': tracks are not supported');
+        eTextObject:            processText(aObject);
+        eFillObject:            log(footprint + ': fills are not supported');
+        eConnectionObject:      log(footprint + ': connections are not supported');
+        eNetObject:             log(footprint + ': nets are not supported');
+        eComponentObject:       log(footprint + ': components are not supported');
+        ePolyObject:            log(footprint + ': polys are not supported');
+        eDimensionObject:       log(footprint + ': dimensions are not supported');
+        eCoordinateObject:      log(footprint + ': coordinates are not supported');
+        eClassObject:           log(footprint + ': classes are not supported');
+        eRuleObject:            log(footprint + ': rules are not supported');
+        eFromToObject:          log(footprint + ': fromtos are not supported');
+        eViolationObject:       log(footprint + ': violations are not supported');
+        eEmbeddedObject:        log(footprint + ': embedded objects are not supported');
+        eTraceObject:           log(footprint + ': traces are not supported');
+        eSpareViaObject:        log(footprint + ': spare vias are not supported');
+        eBoardObject:           log(footprint + ': boards are not supported');
+        eBoardOutlineObject:    log(footprint + ': board outlines are not supported');
     end;
 end;
 
@@ -393,15 +548,29 @@ var
     objIterator : IPCB_GroupIterator;
     pcbObj      : IPCB_Primitive;
 begin
+    // TODO 3d model
     footprint := aFootprint.Name;
     objIterator := aFootprint.GroupIterator_Create();
 
-    // TODO layer, tedit
     // TODO escape footprint name
-    WriteLn(outFile, '(module ' + footprint + ' (layer F.Cu) (tedit 58AA917F)');
+    WriteLn(outFile, '(module ' + StringReplace(footprint, ' ', '_', -1)
+         + ' (layer F.Cu) (tedit 0)');
     WriteLn(outFile, '(descr "' + aFootprint.Description + '")');
-    // TODO
+    // TODO smd/virtual
     //WriteLn(outFile, '(attr smd)');
+    //WriteLn(outFile, '(tags xxx)');
+
+    WriteLn(outFile, '(solder_mask_margin '
+        + IntToStr(scaleToKiCad(aFootprint.SolderMaskExpansion)) + ')');
+
+    WriteLn(outFile, '(solder_paste_margin '
+        + IntToStr(scaleToKiCad(aFootprint.PasteMaskExpansion)) + ')');
+
+    // TODO
+    // WriteLn(outFile, '(clearance dim)');
+    // WriteLn(outFile, '(zone_connect val');
+    // WriteLn(outFile, '(thermal_width val)');
+    // WriteLn(outFile, '(thermal_gap val)');
 
     try
         pcbObj := objIterator.FirstPCBObject;
@@ -477,24 +646,24 @@ begin
     {fpIterator.AddFilter_ObjectSet(MkSet(ePCBComponent));}
     ProgressInit('Converting library ' + pcbLib.Board.FileName, compNumber);
 
-    try
-        footprint := fpIterator.FirstPCBObject;
+    footprint := fpIterator.FirstPCBObject;
 
-        while footprint <> nil do
-        begin
-            // Create file for the converted footprint
+    while footprint <> nil do
+    begin
+        // Create file for the converted footprint
+        try
             AssignFile(outFile, libOutPath + fixFileName(footprint.Name) + '.kicad_mod');
             Rewrite(outFile);
             processFootprint(footprint);;
+        finally
             CloseFile(outFile);
-
-            ProgressUpdate(1);
-            footprint := fpIterator.NextPCBObject;
         end;
 
-    finally
-        pcbLib.LibraryIterator_Destroy(fpIterator);
+        ProgressUpdate(1);
+        footprint := fpIterator.NextPCBObject;
     end;
+
+    pcbLib.LibraryIterator_Destroy(fpIterator);
 
     log('Converted');
     logList.SaveToFile(libOutPath + fixFileName(libName) + '.txt');
