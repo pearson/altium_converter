@@ -25,7 +25,6 @@
 uses StrUtils;
 
 var
-  logList   : TStringList;
   // converted footprint name, used for logging
   footprint : String;
   outFile   : TextFile;
@@ -33,11 +32,6 @@ var
 // not possible in DelphiScript
 //type
 //  TDefParams = array[0..3] of TDynamicString;
-
-procedure log(aMessage : TDynamicString);
-begin
-    logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
-end;
 
 
 function fontSize(aFontID : TFontID) : Integer;
@@ -108,7 +102,54 @@ begin
 end;
 
 
-function layerToString(aLayer : TLayer) : TPCB_String;
+function isCopperLayer(aLayer : TLayer) : Boolean;
+begin
+    case aLayer of
+        eTopLayer,
+        eMidLayer1,
+        eMidLayer2,
+        eMidLayer3,
+        eMidLayer4,
+        eMidLayer5,
+        eMidLayer6,
+        eMidLayer7,
+        eMidLayer8,
+        eMidLayer9,
+        eMidLayer10,
+        eMidLayer11,
+        eMidLayer12,
+        eMidLayer13,
+        eMidLayer14,
+        eMidLayer15,
+        eMidLayer16,
+        eMidLayer17,
+        eMidLayer18,
+        eMidLayer19,
+        eMidLayer20,
+        eMidLayer21,
+        eMidLayer22,
+        eMidLayer23,
+        eMidLayer24,
+        eMidLayer25,
+        eMidLayer26,
+        eMidLayer27,
+        eMidLayer28,
+        eMidLayer29,
+        eMidLayer30,
+        eBottomLayer,
+        eTopOverlay,
+        eBottomOverlay,
+        eTopPaste,
+        eBottomPaste,
+        eTopSolder,
+        eBottomSolder:       result := true;
+        else                 result := false;
+    end;
+end;
+
+
+
+function layerToStr(aLayer : TLayer) : TPCB_String;
 begin                                    // TODO missing layers
     case aLayer of
         // these layers have direct counterparts
@@ -152,14 +193,15 @@ begin                                    // TODO missing layers
         eBottomSolder:       result := 'B.Mask';
 
     // arbitrary mapping, may need adjustments
-        eMechanical1:        result := 'Dwgs.User';
-        eMechanical2:        result := 'Cmts.User';
         eMechanical3:        result := 'Eco1.User';
         eMechanical4:        result := 'Eco2.User';
+        eMechanical8:        result := 'Dwgs.User';
+        eMechanical14:       result := 'Cmts.User';
+        eMechanical15:       result := 'F.CrtYd';
 
     // unsupported layers
     // unmapped layers in KiCad that might be used here:
-    // Edge.Cuts, Margin, {F,B}.CrtYd, {F,B}.Adhes, {F,B}.Fab
+    // Edge.Cuts, Margin, {B}.CrtYd, {F,B}.Adhes, {F,B}.Fab
         eNoLayer,
         eInternalPlane1,
         eInternalPlane2,
@@ -179,17 +221,16 @@ begin                                    // TODO missing layers
         eInternalPlane16,
         eDrillGuide,
         eKeepOutLayer,
+        eMechanical1,
+        eMechanical1,
         eMechanical5,
         eMechanical6,
         eMechanical7,
-        eMechanical8,
         eMechanical9,
         eMechanical10,
         eMechanical11,
         eMechanical12,
         eMechanical13,
-        eMechanical14,
-        eMechanical15,
         eMechanical16,
         eDrillDrawing,
         eMultiLayer,
@@ -206,42 +247,20 @@ begin                                    // TODO missing layers
 end;
 
 
-procedure processText(aText : IPCB_Text);
-begin
-    // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
-    //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
-    // )
-
-    if aText.Width.X <> aText.Width.Y then
-        log(footprint + ': text width has to be the same for X and Y axes');
-
-    // TODO scale real type
-    // TODO reference value
-    WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
-         + IntToStr(scaleToKiCad(aText.XLocation)) + ' '
-         + IntToStr(scaleToKiCad(aText.YLocation)) + ')'
-         + ' (layer ' + layerToString(aText.Layer) + ')');  // TODO hide
-    WriteLn(outFile, '    (effects (font (size ' + IntToStr(scaleToKiCad(aText.Size))
-         + ' ' + IntToStr(scaleToKiCad(aText.Size)) + ')'
-         + ' (thickness ' + IntToStr(scaleToKiCad(aText.Width.X)) + ')))');
-    WriteLn(outFile, ')');
-end;
-
-
 procedure processPad(aPad : IPCB_Pad);
+var
+    width, height : TCoord;
 begin
     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
     if aPad.Mode <> ePadMode_Simple then
-        log(footprint + ': only simple pads are supported - ' + aPad.Name);
+        log(footprint + ': only simple pads are supported: ' + aPad.Name);
 
     Write(outFile, '(pad ' + aPad.Name
-    + ' ' + padTypeToStr(aPad)
-    + ' ' + shapeToStr(aPad.TopShape)
-    + ' (at ' + IntToStr(scaleToKiCad(aPad.X)) + ' '
-    +       IntToStr(scaleToKiCad(aPad.Y)) + ') '
-    + '(size ' + IntToStr(scaleToKiCad(aPad.TopXSize)) + ' '
-    +       IntToStr(scaleToKiCad(aPad.TopYSize)) + ')');
+    + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
+    + ' (at ' + XYToStr(aPad.X, aPad.Y)
+     + ifElse(aPad.Rotation <> 0, IntToStr(aPad.Rotation), '') + ') '
+    + '(size ' + XYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
 
     // TODO layers
     if aPad.IsSurfaceMount then
@@ -257,7 +276,7 @@ begin
 
         case aPad.HoleType of
             eRoundHole:
-                Write(outFile, IntToStr(scaleToKiCad(aPad.HoleSize)));
+                Write(outFile, sizeToStr(aPad.HoleSize));
             eSquareHole:
             begin
                 log(footprint + ': square hole approximated with an oval hole');
@@ -277,6 +296,53 @@ begin
 end;
 
 
+
+procedure processTrack(aTrack : IPCB_Track);
+var
+    layer : TDynamicString;
+begin
+    // (fp_line (start 6.25 5.3) (end -6.25 5.3) (layer F.CrtYd) (width 0.05))
+
+    if isCopperLayer(aTrack) then
+    begin
+        log(footprint + ': copper tracks are not supported');
+        Exit;
+    end;
+
+    layer := layerToStr(aTrack.Layer);
+
+    if layer = '' then Exit;          // unknown layer
+
+    // graphical line
+    WriteLn(outFile, '(fp_line '
+       + '(start ' + XYToStr(aTrack.X1, aTrack.Y1) + ') '
+       + '(end ' + XYToStr(aTrack.X2, aTrack.Y2) + ') '
+       + '(layer ' + layerToStr(aTrack.Layer) + ') '
+       + '(width ' + sizeToStr(aTrack.Width) + '))');
+end;
+
+
+procedure processText(aText : IPCB_Text);
+begin
+    // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
+    //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
+    // )
+
+    if aText.Width.X <> aText.Width.Y then
+        log(footprint + ': text width has to be the same for X and Y axes');
+
+    // TODO scale real type
+    // TODO reference value
+    WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
+         + XYToStr(aText.XLocation, aText.YLocation) + ')'
+         + ' (layer ' + layerToStr(aText.Layer) + ')');  // TODO hide
+    WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)
+         + ' ' + sizeToStr(aText.Size) + ')'
+         + ' (thickness ' + sizeToStr(aText.Width.X) + ')))');
+    WriteLn(outFile, ')');
+end;
+
+
 procedure processObject(aObject : IPCB_Primitive);
 begin
     case aObject.ObjectId of
@@ -284,7 +350,7 @@ begin
         eArcObject:             log(footprint + ': arcs are not supported');
         ePadObject:             processPad(aObject);
         eViaObject:             log(footprint + ': vias are not supported');
-        eTrackObject:           log(footprint + ': tracks are not supported');
+        eTrackObject:           processTrack(aObject);
         eTextObject:            processText(aObject);
         eFillObject:            log(footprint + ': fills are not supported');
         eConnectionObject:      log(footprint + ': connections are not supported');
@@ -323,11 +389,13 @@ begin
     //WriteLn(outFile, '(attr smd)');
     //WriteLn(outFile, '(tags xxx)');
 
-    WriteLn(outFile, '(solder_mask_margin '
-        + IntToStr(scaleToKiCad(aFootprint.SolderMaskExpansion)) + ')');
+    if aFootprint.SolderMaskExpansion <> 0 then
+        WriteLn(outFile, '(solder_mask_margin '
+            + sizeToStr(aFootprint.SolderMaskExpansion) + ')');
 
-    WriteLn(outFile, '(solder_paste_margin '
-        + IntToStr(scaleToKiCad(aFootprint.PasteMaskExpansion)) + ')');
+    if aFootprint.PasteMaskExpansion <> 0 then
+        WriteLn(outFile, '(solder_paste_margin '
+            + sizeToStr(aFootprint.PasteMaskExpansion) + ')');
 
     // TODO
     // WriteLn(outFile, '(clearance dim)');
@@ -451,6 +519,8 @@ begin
 
     if Client.CurrentView <> nil then
         doc := Client.CurrentView.OwnerDocument;
+
+    setScale(1000000 / 2.54);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'PCBLIB') then
     begin

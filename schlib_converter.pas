@@ -22,10 +22,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *}
 
+unit schlib_converter;
+
 uses StrUtils;
 
 var
-  logList   : TStringList;
   // converted component name, used for logging
   component : String;
   outFile   : TextFile;
@@ -44,11 +45,6 @@ const
 // not possible in DelphiScript
 //type
 //  TDefParams = array[0..3] of TDynamicString;
-
-procedure log(aMessage : TDynamicString);
-begin
-    logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
-end;
 
 
 function escapeLabel(aText : TDynamicString) : TDynamicString;
@@ -1034,6 +1030,8 @@ begin
      if Client.CurrentView <> nil then
          doc := Client.CurrentView.OwnerDocument;
 
+    setScale(10000);
+
     if (doc <> nil) and (UpperCase(doc.Kind) = 'SCHLIB') then
     begin
         // Process only current library
@@ -1130,3 +1128,5 @@ begin
 
     processFiles(true);
 end;
+
+end.
