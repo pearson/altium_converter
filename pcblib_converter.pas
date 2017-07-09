@@ -28,10 +28,18 @@ var
   // converted footprint name, used for logging
   footprint : String;
   outFile   : TextFile;
+  // footprint origin
+  fpX, fpY  : Integer;
 
 // not possible in DelphiScript
 //type
 //  TDefParams = array[0..3] of TDynamicString;
+
+
+function pcbXYToStr(aX : TCoord, aY : TCoord) : TDynamicString;
+begin
+    result := XYToStr(aX - fpX, aY - fpY);
+end;
 
 
 function fontSize(aFontID : TFontID) : Integer;
@@ -258,9 +266,9 @@ begin
 
     Write(outFile, '(pad ' + aPad.Name
     + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
-    + ' (at ' + XYToStr(aPad.X, aPad.Y)
+    + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
      + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
-    + '(size ' + XYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
+    + '(size ' + pcbXYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
 
     // TODO layers
     if aPad.IsSurfaceMount then
@@ -315,8 +323,8 @@ begin
 
     // graphical line
     WriteLn(outFile, '(fp_line '
-       + '(start ' + XYToStr(aTrack.X1, aTrack.Y1) + ') '
-       + '(end ' + XYToStr(aTrack.X2, aTrack.Y2) + ') '
+       + '(start ' + pcbXYToStr(aTrack.X1, aTrack.Y1) + ') '
+       + '(end ' + pcbXYToStr(aTrack.X2, aTrack.Y2) + ') '
        + '(layer ' + layerToStr(aTrack.Layer) + ') '
        + '(width ' + sizeToStr(aTrack.Width) + '))');
 end;
@@ -334,7 +342,7 @@ begin
     // TODO scale real type
     // TODO reference value
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
-         + XYToStr(aText.XLocation, aText.YLocation) + ')'
+         + pcbXYToStr(aText.XLocation, aText.YLocation) + ')'
          + ' (layer ' + layerToStr(aText.Layer) + ')');  // TODO hide
     WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)
          + ' ' + sizeToStr(aText.Size) + ')'
@@ -379,6 +387,9 @@ var
 begin
     // TODO 3d model
     footprint := aFootprint.Name;
+    fpX := aFootprint.X;
+    fpY := aFootprint.Y;
+
     objIterator := aFootprint.GroupIterator_Create();
 
     if footprint = 'BATH_KEYSTONE_3000' then
@@ -523,10 +534,11 @@ begin
     if Client.CurrentView <> nil then
         doc := Client.CurrentView.OwnerDocument;
 
-    //setScale(254, 100000, 3);
+    // Altium internally uses nanoinches, KiCad PCB format uses millimeters,
+    // even though internally pcbnew uses nanometers
+    //setScale(254, 100000000, 3, false);
     // keep ratio, with decreased numerator it is less likely to overflow
-    //setScale(127, 50000, 3);
-    setScale(127, 50, 6);
+    setScale(127, 50000000, 3, false);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'PCBLIB') then
     begin

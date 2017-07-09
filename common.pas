@@ -29,63 +29,16 @@ const
   PARAM_TEXT_SIZE = 60;
 
 var
-  logList   : TStringList;
+  logList : TStringList;
   scaleNumerator, scaleDenominator : Integer;
-  fixedPoint : Integer;
+  // whether use floating or fixed point for rescale
+  floatRescale : Boolean;
+  precision : Integer;
 
 
 procedure log(aMessage : TDynamicString);
 begin
     logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
-end;
-
-
-procedure setScale(aScaleNum, aScaleDenom, aFixedPoint : Integer);
-begin
-    scaleNumerator := aScaleNum;
-    scaleDenominator := aScaleDenom;
-    fixedPoint := aFixedPoint;
-end;
-
-
-function safe_rescale(a, b, c : Integer) : Integer;
-begin
-    log('safe_rescale');
-
-    // this is what happens when a programming language
-    // does not provide 64-bit types
-    result := (a div c) * b + (a mod c) * (b div c) + (a mod c) * (b mod c) / c;
-end;
-
-
-function rescale(aVal, aNumerator, aDenominator : Integer) : Integer;
-begin
-    if aVal = 0 then
-        result := 0
-
-    // check for overflow in the multiplication result
-    else if aVal < 2147483646 / aNumerator then
-        result := (aVal * aNumerator) / aDenominator
-
-    else if aVal > 0 then
-        result := safe_rescale(aVal, aNumerator, aDenominator)
-
-    else // aVal < 0
-        result := -safe_rescale(-aVal, aNumerator, aDenominator);
-
-    log(IntToStr(aVal) + ' -> ' + IntToStr(result));
-end;
-
-
-function scaleToKiCad(aVal : Integer) : Integer;
-begin
-    result := rescale(aVal, scaleNumerator, scaleDenominator);
-end;
-
-
-function scaleToAltium(aVal : Integer) : Integer;
-begin
-    result := rescale(aVal, scaleDenominator, scaleNumerator);
 end;
 
 
@@ -99,20 +52,86 @@ begin
 end;
 
 
-function fixedPointToStr(aNumber : Integer) : TDynamicString;
+procedure setScale(aScaleNum, aScaleDenom, aPrecision : Integer;
+                   aFloatRescale : Boolean);
+var
+    i : Integer;
+begin
+    scaleNumerator := aScaleNum;
+    scaleDenominator := aScaleDenom;
+
+    // in fixed point mode adjust the scale denominator to
+    // achieve the requested precision during calculations
+    if not aFloatRescale then
+    begin
+        for i := 1 to aPrecision do
+            scaleDenominator := scaleDenominator div 10;
+    end;
+
+    precision := aPrecision;
+    floatRescale := aFloatRescale;
+    SetRoundMode(rmNearest);
+end;
+
+
+function divRound(n, d : Integer) : Integer;
+begin
+    if (n < 0) xor (d < 0) then
+        result := ((n - d div 2) div d)
+    else
+        result := ((n + d div 2) div d);
+end;
+
+
+function safeFixedRescale(a, b, c : Integer) : Integer;
+var
+    hi, lo : Integer;
+begin
+    hi := Max(a, b);
+    lo := Min(a, b);
+
+    // this is what happens when a programming language
+    // does not provide 64-bit types
+    result := (hi div c) * lo + (hi mod c) * lo / c;
+end;
+
+
+function fixedRescale(aVal, aNumerator, aDenominator : Integer) : Integer;
+begin
+    if aVal = 0 then
+        result := 0
+
+    // check for overflow in the multiplication result
+    else if aVal < 2147483646 div aNumerator then
+        result := divRound(aVal * aNumerator, aDenominator)
+
+    else if aVal > 0 then
+        result := safeFixedRescale(aVal, aNumerator, aDenominator)
+
+    else // aVal < 0
+        result := -safeFixedRescale(-aVal, aNumerator, aDenominator);
+end;
+
+
+function fixedScaleToKiCad(aVal : Integer) : Integer;
+begin
+    result := fixedRescale(aVal, scaleNumerator, scaleDenominator);
+end;
+
+
+function fixedScaleToAltium(aVal : Integer) : Integer;
+begin
+    result := fixedRescale(aVal, scaleDenominator, scaleNumerator);
+end;
+
+
+function fixedToStr(aNumber : Integer) : TDynamicString;
 var
     strLen, digLen, firstDig : Integer;
 begin
-    {if fixedPoint > 0 then
-        result := FloatToStrF(aNumber / Power(10, fixedPoint), ffGeneral, 6, 3)
-    else
-        result := IntToStr(aNumber);
-
-    Exit;}
-
     result := IntToStr(aNumber);
 
-    if (fixedPoint > 0) and (aNumber <> 0) then
+    if (precision > 0) and (aNumber <> 0) then
     begin
         strLen := Length(result);
 
@@ -127,10 +146,10 @@ begin
             digLen := strLen;
         end;
 
-        if digLen > fixedPoint then
-            Insert('.', result, strLen - fixedPoint + 1)
+        if digLen > precision then
+            Insert('.', result, strLen - precision + 1)
         else // add heading zeros
-            Insert('0.' + StringOfChar('0', fixedPoint - digLen), result, firstDig);
+            Insert('0.' + StringOfChar('0', precision - digLen), result, firstDig);
 
         strLen := Length(result);
 
@@ -149,7 +168,23 @@ end;
 
 function sizeToStr(aSize : TCoord) : TDynamicString;
 begin
-    result := fixedPointToStr(scaleToKiCad(aSize));
+    if floatRescale then
+        result := FloatToStrF(aSize * scaleNumerator / scaleDenominator,
+                              ffGeneral, 6, precision)
+    else
+        result := fixedToStr(fixedScaleToKiCad(aSize));
+end;
+
+
+function XYToStr(aX : TCoord, aY : TCoord) : TDynamicString;
+begin
+    result := sizeToStr(aX) + ' ' + sizeToStr(aY);
+end;
+
+
+function locToStr(aLocation : TLocation) : TDynamicString;
+begin
+    result := XYToStr(aLocation.x, aLocation.y);
 end;
 
 
@@ -196,18 +231,6 @@ begin
         eRotate180: result := 0;
         eRotate270: result := 900;
     end;
-end;
-
-
-function XYToStr(aX : TCoord, aY : TCoord) : TDynamicString;
-begin
-    result := sizeToStr(aX) + ' ' + sizeToStr(aY);
-end;
-
-
-function locToStr(aLocation : TLocation) : TDynamicString;
-begin
-    result := XYToStr(aLocation.x, aLocation.y);
 end;
 
 

@@ -365,7 +365,7 @@ begin
     end;
 
     Write(outFile, 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
-            + ' ' + locToStr(pos) + ' ' + IntToStr(scaleToKiCad(aPin.PinLength))
+            + ' ' + locToStr(pos) + ' ' + sizeToStr(aPin.PinLength)
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
             + ifElse(aPin.ShowName, ' 60 ', ' 0 ')          // TODO get correct size
@@ -465,7 +465,7 @@ procedure processArc(aArc : ISch_Arc; aFilled : Boolean);
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
-    Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + IntToStr(scaleToKiCad(aArc.Radius))
+    Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + sizeToStr(aArc.Radius)
             + ' ' + IntToStr(aArc.EndAngle * 10) + ' ' + IntToStr(aArc.StartAngle * 10)
             + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth)));
 
@@ -496,48 +496,48 @@ begin
     // left edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scaleToKiCad(startX)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
-            + ' ' + IntToStr(scaleToKiCad(startX)) + ' ' + IntToStr(scaleToKiCad(endY - radius)) + ' N');
+            + ' ' + sizeToStr(startX) + ' ' + sizeToStr(startY + radius)
+            + ' ' + sizeToStr(startX) + ' ' + sizeToStr(endY - radius) + ' N');
 
     // bottom edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(endY))
-            + ' ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(endY)) + ' N');
+            + ' ' + sizeToStr(startX + radius) + ' ' + sizeToStr(endY)
+            + ' ' + sizeToStr(endX - radius) + ' ' + sizeToStr(endY) + ' N');
 
     // right edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scaleToKiCad(endX)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
-            + ' ' + IntToStr(scaleToKiCad(endX)) + ' ' + IntToStr(scaleToKiCad(endY - radius)) + ' N');
+            + ' ' + sizeToStr(endX) + ' ' + sizeToStr(startY + radius)
+            + ' ' + sizeToStr(endX) + ' ' + sizeToStr(endY - radius) + ' N');
 
     // top edge
     WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
-            + ' ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(startY))
-            + ' ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(startY)) + ' N');
+            + ' ' + sizeToStr(startX + radius) + ' ' + sizeToStr(startY)
+            + ' ' + sizeToStr(endX - radius) + ' ' + sizeToStr(startY) + ' N');
 
     // top left corner
-    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(endY - radius))
-            + ' ' + IntToStr(scaleToKiCad(radius)) + ' 900 1800 '
+    WriteLn(outFile, 'A ' + sizeToStr(startX + radius) + ' ' + sizeToStr(endY - radius)
+            + ' ' + sizeToStr(radius) + ' 900 1800 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom left corner
-    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(startX + radius)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
-            + ' ' + IntToStr(scaleToKiCad(radius)) + ' -900 1800 '
+    WriteLn(outFile, 'A ' + sizeToStr(startX + radius) + ' ' + sizeToStr(startY + radius)
+            + ' ' + sizeToStr(radius) + ' -900 1800 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // top right corner
-    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(endY - radius))
-            + ' ' + IntToStr(scaleToKiCad(radius)) + ' 900 0 '
+    WriteLn(outFile, 'A ' + sizeToStr(endX - radius) + ' ' + sizeToStr(endY - radius)
+            + ' ' + sizeToStr(radius) + ' 900 0 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom right corner
-    WriteLn(outFile, 'A ' + IntToStr(scaleToKiCad(endX - radius)) + ' ' + IntToStr(scaleToKiCad(startY + radius))
-            + ' ' + IntToStr(scaleToKiCad(radius)) + ' -900 0 '
+    WriteLn(outFile, 'A ' + sizeToStr(endX - radius) + ' ' + sizeToStr(startY + radius)
+            + ' ' + sizeToStr(radius) + ' -900 0 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 end;
@@ -611,7 +611,7 @@ begin
         // circle
         // C posx posy radius unit convert thickness cc
         WriteLn(outFile, 'C ' + locToStr(loc)
-                + ' ' + IntToStr(scaleToKiCad(rad1))
+                + ' ' + sizeToStr(rad1)
                 + ' ' + partMode(aEllipse)
                 + ' ' + IntToStr(convertTSize(aEllipse.LineWidth))
                 + ' ' + fillObjToStr(aEllipse));
@@ -1030,7 +1030,7 @@ begin
      if Client.CurrentView <> nil then
          doc := Client.CurrentView.OwnerDocument;
 
-    setScale(1, 10000, 0);
+    setScale(1, 10000, 0, false);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'SCHLIB') then
     begin
