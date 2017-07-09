@@ -141,7 +141,7 @@ begin
 end;
 
 
-
+// TODO move layer mapping to configuration file
 function layerToStr(aLayer : TLayer) : TPCB_String;
 begin                                    // TODO missing layers
     case aLayer of
@@ -240,6 +240,37 @@ begin                                    // TODO missing layers
 end;
 
 
+procedure processArc(aArc : IPCB_Arc);
+var
+    layer : TDynamicString;
+    isCircle : Boolean;
+begin
+    // handles both arcs and circles (special kind of arc)
+    // (fp_arc (start 6.25 5.3) (end -6.25 5.3) [(angle 100)] (layer F.CrtYd) (width 0.05))
+
+    if isCopperLayer(aArc) then
+    begin
+        log(footprint + ': copper arcs are not supported');
+        Exit;
+    end;
+
+    layer := layerToStr(aArc.Layer);
+    if layer = '' then Exit;          // unknown layer
+
+    isCircle := (aArc.StartAngle = 0) and (aArc.EndAngle = 360);
+
+    Write(outFile, ifElse(isCircle, '(fp_circle ', '(fp_arc ')
+       + ifElse(isCircle, '(center ', '(start ') + pcbXYToStr(aArc.XCenter, aArc.YCenter) + ') '
+       + '(end ' + pcbXYToStr(aArc.EndX, aArc.EndY) + ') ');
+
+    if not isCircle then
+        Write(outFile, '(angle ' + IntToStr(aArc.EndAngle - aArc.StartAngle) + ') ');
+
+    WriteLn(outFile, '(layer ' + layerToStr(aArc.Layer) + ') '
+       + '(width ' + sizeToStr(aArc.LineWidth) + '))');
+end;
+
+
 procedure processPad(aPad : IPCB_Pad);
 var
     width, height : TCoord;
@@ -249,13 +280,17 @@ begin
     if aPad.Mode <> ePadMode_Simple then
         log(footprint + ': only simple pads are supported: ' + aPad.Name);
 
+    if Length(aPad.Name) > 4 then
+        log(footprint + ': pad name truncated from ' + aPad.Name
+            + ' to ' + Copy(aPad.Name, 1, 4));
+
     // in Altium holes bigger than pads are allowed, in KiCad it is not possible
     // resize pads to the hole size if they are smaller
     width := Max(aPad.HoleSize, aPad.TopXSize);
     height := Max(aPad.HoleSize, aPad.TopYSize);
 
     // TODO pad name in KiCad is limited to 4 chars, spaces are allowed (check)
-    Write(outFile, '(pad ' + aPad.Name
+    Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
     + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
     + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
      + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
@@ -264,7 +299,7 @@ begin
     // TODO layers
     if aPad.IsSurfaceMount then
     begin
-        WriteLn(outFile, '(layers F.Cu F.Paste F.Mask))');
+        WriteLn(outFile, '(layers F.Cu F.Paste F.Mask)');
     end
     else
     begin
@@ -287,10 +322,20 @@ begin
         Write(outFile, ')');
         // TODO drill offset
 
-        WriteLn(outFile, ' (layers *.Cu *.Paste *.Mask))')
+        Write(outFile, ' (layers *.Cu *.Paste *.Mask)');
     end;
 
-    // TODO clearance, zone_connect, solder_paste/mask_margin, thermal_gap, thermal_width
+    // TODO not entirely true, only valid if 'Solder Mask Override' field is true
+    if aPad.Cache.SolderMaskExpansion <> 0 then
+        Write(outFile, ' (solder_mask_margin ' + sizeToStr(aPad.SolderMaskExpansion) + ')');
+
+    // TODO not entirely true, only valid if 'Paste Mask Override' field is true
+    if aPad.Cache.PasteMaskExpansion <> 0 then
+        Write(outFile, ' (solder_paste_margin ' + sizeToStr(aPad.PasteMaskExpansion) + ')');
+
+    WriteLn(outFile, ')');
+
+    // TODO clearance, zone_connect, thermal_gap, thermal_width
     // zone_connect -> PlaneConenctionStyleForLayer?
 end;
 
@@ -300,6 +345,7 @@ procedure processTrack(aTrack : IPCB_Track);
 var
     layer : TDynamicString;
 begin
+    // graphical line
     // (fp_line (start 6.25 5.3) (end -6.25 5.3) (layer F.CrtYd) (width 0.05))
 
     if isCopperLayer(aTrack) then
@@ -309,10 +355,8 @@ begin
     end;
 
     layer := layerToStr(aTrack.Layer);
-
     if layer = '' then Exit;          // unknown layer
 
-    // graphical line
     WriteLn(outFile, '(fp_line '
        + '(start ' + pcbXYToStr(aTrack.X1, aTrack.Y1) + ') '
        + '(end ' + pcbXYToStr(aTrack.X2, aTrack.Y2) + ') '
@@ -346,7 +390,7 @@ procedure processObject(aObject : IPCB_Primitive);
 begin
     case aObject.ObjectId of
         eNoObject:              log(footprint + ': contains an invalid object (eNoObject)');
-        eArcObject:             log(footprint + ': arcs are not supported');
+        eArcObject:             processArc(aObject);
         ePadObject:             processPad(aObject);
         eViaObject:             log(footprint + ': vias are not supported');
         eTrackObject:           processTrack(aObject);
