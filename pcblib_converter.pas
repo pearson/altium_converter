@@ -268,7 +268,7 @@ begin
     + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
     + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
      + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
-    + '(size ' + pcbXYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
+    + '(size ' + XYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
 
     // TODO layers
     if aPad.IsSurfaceMount then
@@ -391,9 +391,6 @@ begin
     fpY := aFootprint.Y;
 
     objIterator := aFootprint.GroupIterator_Create();
-
-    if footprint = 'BATH_KEYSTONE_3000' then
-        log('dbg');                     // TODO remove
 
     // TODO escape footprint name
     WriteLn(outFile, '(module ' + StringReplace(footprint, ' ', '_', -1)

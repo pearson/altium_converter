@@ -74,6 +74,7 @@ begin
 end;
 
 
+// divide and round to the nearest integer
 function divRound(n, d : Integer) : Integer;
 begin
     if (n < 0) xor (d < 0) then
@@ -83,6 +84,8 @@ begin
 end;
 
 
+// safe rescaling algorithm for numbers that would cause overflow when
+// multiplicated by the scale numerator (much slower, so use only when needed)
 function safeFixedRescale(a, b, c : Integer) : Integer;
 var
     hi, lo : Integer;
