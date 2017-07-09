@@ -237,6 +237,12 @@ begin
 end;
 
 
+function fixSpaces(aString : TDynamicString) : TDynamicString;
+begin
+    result := StringReplace(aString, ' ', '_', -1);
+end;
+
+
 function fixFileName(aName : TDynamicString) : TDynamicString;
 var
     i : Integer;

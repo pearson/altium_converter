@@ -38,29 +38,14 @@ var
 
 function pcbXYToStr(aX : TCoord, aY : TCoord) : TDynamicString;
 begin
-    result := XYToStr(aX - fpX, aY - fpY);
+    // inverted Y-axis
+    result := XYToStr(aX - fpX, fpY - aY);
 end;
 
 
 function fontSize(aFontID : TFontID) : Integer;
 begin
      result := PCBServer.FontManager.Size(aFontID) * 5
-end;
-
-
-function justToStr(aJustification : TTextJustification) : TDynamicString;
-begin
-    case aJustification of
-        eJustify_BottomLeft:    result := 'L B';
-        eJustify_BottomCenter:  result := 'C B';
-        eJustify_BottomRight:   result := 'R B';
-        eJustify_CenterLeft:    result := 'L C';
-        eJustify_Center:        result := 'C C';
-        eJustify_CenterRight:   result := 'R C';
-        eJustify_TopLeft:       result := 'L T';
-        eJustify_TopCenter:     result := 'C T';
-        eJustify_TopRight:      result := 'R T';
-    end;
 end;
 
 
@@ -250,7 +235,7 @@ begin                                    // TODO missing layers
         eGridColor10,
         ePadHoleLayer,
         eViaHoleLayer:
-        log(component + ': unknown layer');
+        log(component + ': unhandled layer');
     end;
 end;
 
@@ -264,11 +249,17 @@ begin
     if aPad.Mode <> ePadMode_Simple then
         log(footprint + ': only simple pads are supported: ' + aPad.Name);
 
+    // in Altium holes bigger than pads are allowed, in KiCad it is not possible
+    // resize pads to the hole size if they are smaller
+    width := Max(aPad.HoleSize, aPad.TopXSize);
+    height := Max(aPad.HoleSize, aPad.TopYSize);
+
+    // TODO pad name in KiCad is limited to 4 chars, spaces are allowed (check)
     Write(outFile, '(pad ' + aPad.Name
     + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
     + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
      + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
-    + '(size ' + XYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
+    + '(size ' + XYToStr(width, height) + ') ');
 
     // TODO layers
     if aPad.IsSurfaceMount then
@@ -392,8 +383,7 @@ begin
 
     objIterator := aFootprint.GroupIterator_Create();
 
-    // TODO escape footprint name
-    WriteLn(outFile, '(module ' + StringReplace(footprint, ' ', '_', -1)
+    WriteLn(outFile, '(module ' + fixSpaces(footprint)
          + ' (layer F.Cu) (tedit 0)');
     WriteLn(outFile, '(descr "' + aFootprint.Description + '")');
     // TODO smd/virtual
