@@ -1030,7 +1030,7 @@ begin
      if Client.CurrentView <> nil then
          doc := Client.CurrentView.OwnerDocument;
 
-    setScale(10000);
+    setScale(1, 10000, 0);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'SCHLIB') then
     begin

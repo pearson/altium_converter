@@ -259,7 +259,7 @@ begin
     Write(outFile, '(pad ' + aPad.Name
     + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
     + ' (at ' + XYToStr(aPad.X, aPad.Y)
-     + ifElse(aPad.Rotation <> 0, IntToStr(aPad.Rotation), '') + ') '
+     + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
     + '(size ' + XYToStr(aPad.TopXSize, aPad.TopYSize) + ') ');
 
     // TODO layers
@@ -380,6 +380,9 @@ begin
     // TODO 3d model
     footprint := aFootprint.Name;
     objIterator := aFootprint.GroupIterator_Create();
+
+    if footprint = 'BATH_KEYSTONE_3000' then
+        log('dbg');                     // TODO remove
 
     // TODO escape footprint name
     WriteLn(outFile, '(module ' + StringReplace(footprint, ' ', '_', -1)
@@ -520,7 +523,10 @@ begin
     if Client.CurrentView <> nil then
         doc := Client.CurrentView.OwnerDocument;
 
-    setScale(1000000 / 2.54);
+    //setScale(254, 100000, 3);
+    // keep ratio, with decreased numerator it is less likely to overflow
+    //setScale(127, 50000, 3);
+    setScale(127, 50, 6);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'PCBLIB') then
     begin
