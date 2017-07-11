@@ -240,6 +240,12 @@ begin
 end;
 
 
+function escapeQuotes(aString : TDynamicString) : TDynamicString;
+begin
+    result := StringReplace(aString, '"', '\\"', -1);
+end;
+
+
 function fixFileName(aName : TDynamicString) : TDynamicString;
 var
     i : Integer;

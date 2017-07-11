@@ -235,7 +235,7 @@ begin                                    // TODO missing layers
         eGridColor10,
         ePadHoleLayer,
         eViaHoleLayer:
-        log(footprint + ': unhandled layer ' + IntToStr(aLayer));
+        log(footprint + ': unhandled layer ' + cLayerStrings[aLayer]);
     end;
 end;
 
@@ -294,7 +294,15 @@ begin
     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
     if aPad.Mode <> ePadMode_Simple then
-        log(footprint + ': only simple pads are supported: ' + aPad.Name);
+    begin
+        // there is still a chance if all layers have the same shape and size
+        // (basically simple stack)
+        if not((aPad.Mode = ePadMode_LocalStack) and
+          (aPad.TopShape = aPad.MidShape) and (aPad.MidShape = aPad.BotShape) and
+          (aPad.TopXSize = aPad.MidXSize) and (aPad.MidXSize = aPad.BotXSize) and
+          (aPad.TopYSize = aPad.MidYSize) and (aPad.MidYSize = aPad.BotYSize)) then
+            log(footprint + ': only simple pads are supported: ' + aPad.Name);
+    end;
 
     if Length(aPad.Name) > 4 then
         log(footprint + ': pad name truncated from ' + aPad.Name
@@ -442,7 +450,7 @@ begin
 
     WriteLn(outFile, '(module ' + fixSpaces(footprint)
          + ' (layer F.Cu) (tedit 0)');
-    WriteLn(outFile, '(descr "' + aFootprint.Description + '")');
+    WriteLn(outFile, '(descr "' + escapeQuotes(aFootprint.Description) + '")');
     // TODO smd/virtual
     //WriteLn(outFile, '(attr smd)');
     //WriteLn(outFile, '(tags xxx)');
