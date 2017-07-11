@@ -116,15 +116,12 @@ begin
 end;
 
 
-function fixedScaleToKiCad(aVal : Integer) : Integer;
+function scaleToAltium(aVal : Integer) : Integer;
 begin
-    result := fixedRescale(aVal, scaleNumerator, scaleDenominator);
-end;
-
-
-function fixedScaleToAltium(aVal : Integer) : Integer;
-begin
-    result := fixedRescale(aVal, scaleDenominator, scaleNumerator);
+    if floatRescale then
+        result := Round(aVal * scaleNumerator / scaleDenominator)
+    else
+        result := fixedRescale(aVal, scaleDenominator, scaleNumerator);
 end;
 
 
@@ -175,7 +172,7 @@ begin
         result := FloatToStrF(aSize * scaleNumerator / scaleDenominator,
                               ffGeneral, 6, precision)
     else
-        result := fixedToStr(fixedScaleToKiCad(aSize));
+        result := fixedToStr(fixedRescale(aSize, scaleNumerator, scaleDenominator));
 end;
 
 

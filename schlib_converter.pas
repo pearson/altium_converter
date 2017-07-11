@@ -1040,14 +1040,14 @@ begin
     else
     begin
         // Display a file open dialog and pick a library to be converted
-        {fileOpenDialog := TFileOpenDialog.Create(nil);
+        fileOpenDialog := TFileOpenDialog.Create(nil);
         fileOpenDialog.Title := 'Select schematic symbol libraries';
 
         if fileOpenDialog.Execute() then
         begin
-            for i := 0 to fileOpen.Files.Count do
+            for i := 0 to fileOpenDialog.Files.Count - 1 do
             begin
-                doc := Client.OpenDocument('SchLib', fileOpen.Files[i]);
+                doc := Client.OpenDocument('SchLib', fileOpenDialog.Files[i]);
 
                 if doc <> nil then
                 begin
@@ -1058,7 +1058,7 @@ begin
             end;
         end;
 
-        fileOpenDialog.Free();}
+        fileOpenDialog.Free();
 
 
         // if file browser does not work, use the following way of batch processing

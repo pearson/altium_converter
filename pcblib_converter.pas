@@ -235,7 +235,7 @@ begin                                    // TODO missing layers
         eGridColor10,
         ePadHoleLayer,
         eViaHoleLayer:
-        log(component + ': unhandled layer');
+        log(footprint + ': unhandled layer ' + IntToStr(aLayer));
     end;
 end;
 
@@ -330,10 +330,10 @@ begin
             eSquareHole:
             begin
                 log(footprint + ': square hole approximated with an oval hole');
-                Write(outFile, 'oval ' + locToStr(aPad.HoleSize));
+                Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize));
             end;
-            eSlotHole:
-                Write(outFile, 'oval ' + locToStr(aPad.HoleSize));  // TODO merge
+            eSlotHole:              // TODO incorrect?
+                Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize));  // TODO merge
         end;
         Write(outFile, ')');
         // TODO drill offset
@@ -387,9 +387,6 @@ begin
     //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
     // )
 
-    if aText.Width.X <> aText.Width.Y then
-        log(footprint + ': text width has to be the same for X and Y axes');
-
     // TODO scale real type
     // TODO reference value
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
@@ -397,7 +394,7 @@ begin
          + ' (layer ' + layerToStr(aText.Layer) + ')');  // TODO hide
     WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)
          + ' ' + sizeToStr(aText.Size) + ')'
-         + ' (thickness ' + sizeToStr(aText.Width.X) + ')))');
+         + ' (thickness ' + sizeToStr(aText.Width) + ')))');
     WriteLn(outFile, ')');
 end;
 
@@ -592,8 +589,30 @@ begin
     begin
         // Process only current library
         processLibrary(0);
+    end
+    else
+    begin
+        // Display a file open dialog and pick a library to be converted
+        fileOpenDialog := TFileOpenDialog.Create(nil);
+        fileOpenDialog.Title := 'Select footprint libraries';
+
+        if fileOpenDialog.Execute() then
+        begin
+            for i := 0 to fileOpenDialog.Files.Count - 1 do
+            begin
+                doc := Client.OpenDocument('PcbLib', fileOpenDialog.Files[i]);
+
+                if doc <> nil then
+                begin
+                    Client.ShowDocument(doc);
+                    processLibrary(0);
+                    Client.CloseDocument(doc);
+                end;
+            end;
+        end;
+
+        fileOpenDialog.Free();
     end;
-    { TODO file browser}
 end;
 
 //  TODO processFolder
