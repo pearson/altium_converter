@@ -243,6 +243,8 @@ end;
 procedure processArc(aArc : IPCB_Arc);
 var
     layer : TDynamicString;
+    endPt : TLocation;
+    angle : TAngle;
     isCircle : Boolean;
 begin
     // handles both arcs and circles (special kind of arc)
@@ -258,13 +260,27 @@ begin
     if layer = '' then Exit;          // unknown layer
 
     isCircle := (aArc.StartAngle = 0) and (aArc.EndAngle = 360);
+    endPt := TLocation;
+
+    if aArc.StartAngle > aArc.EndAngle then
+    begin
+        endPt.x := aArc.EndX;
+        endPt.y := aArc.EndY;
+        angle := aArc.EndAngle + (360 - aArc.StartAngle);
+    end
+    else
+    begin
+        endPt.x := aArc.StartX;
+        endPt.y := aArc.StartY;
+        angle := aArc.StartAngle - aArc.EndAngle;
+    end;
 
     Write(outFile, ifElse(isCircle, '(fp_circle ', '(fp_arc ')
        + ifElse(isCircle, '(center ', '(start ') + pcbXYToStr(aArc.XCenter, aArc.YCenter) + ') '
-       + '(end ' + pcbXYToStr(aArc.EndX, aArc.EndY) + ') ');
+       + '(end ' + pcbXYToStr(endPt.x, endPt.y) + ') ');
 
     if not isCircle then
-        Write(outFile, '(angle ' + IntToStr(aArc.EndAngle - aArc.StartAngle) + ') ');
+        Write(outFile, '(angle ' + IntToStr(angle) + ') ');
 
     WriteLn(outFile, '(layer ' + layerToStr(aArc.Layer) + ') '
        + '(width ' + sizeToStr(aArc.LineWidth) + '))');
@@ -476,6 +492,7 @@ var
   compNumber    : Integer;
 
   libName       : TDynamicString;
+  libPath       : TString;
   libOutPath    : TString;
 begin
     pcbLib := PCBServer.GetCurrentPCBLibrary;
@@ -497,7 +514,7 @@ begin
 
     libName := pcbLib.Board.FileName;
     libName := StringReplace(ExtractFileName(libName), '.PCBLib', '', -1);
-    libOutPath := ExtractFileDir(pcbLib.Board.FileName) + '\';
+    libPath := ExtractFileDir(pcbLib.Board.FileName);
     logList := TStringList.Create();
 
     if libName = '' then
@@ -509,7 +526,7 @@ begin
     log('Converting ' + pcbLib.Board.FileName);
 
     // Create a directory to store the output
-    libOutPath := libOutPath + fixFileName(libName) + '.pretty\';
+    libOutPath := libPath + '\' + fixFileName(libName) + '.pretty\';
 
     if DirectoryExists(libOutPath) then
         RemoveDir(libOutPath);
@@ -542,7 +559,7 @@ begin
     pcbLib.LibraryIterator_Destroy(fpIterator);
 
     log('Converted');
-    logList.SaveToFile(libOutPath + fixFileName(libName) + '.txt');
+    logList.SaveToFile(libPath + '\' + fixFileName(libName) + '.txt');
     logList.Free();
 
     ProgressFinish(0);
@@ -579,35 +596,4 @@ begin
     { TODO file browser}
 end;
 
-
-{
-(module CP_Elec_10x10.5 (layer F.Cu) (tedit 58AA917F)
-  (descr "SMT capacitor, aluminium electrolytic, 10x10.5")
-  (attr smd)
-  (fp_text reference REF** (at 0 6.46) (layer F.SilkS)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_text value CP_Elec_10x10.5 (at 0 -6.46) (layer F.Fab)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_line (start 6.25 5.3) (end -6.25 5.3) (layer F.CrtYd) (width 0.05))
-  (fp_line (start -5.21 -4.45) (end -5.21 -1.56) (layer F.SilkS) (width 0.12))
-  (fp_text user %R (at 0 6.46) (layer F.Fab)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_text user + (at -5.78 4.97) (layer F.SilkS)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_text user + (at -2.91 -0.08) (layer F.Fab)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_circle (center 0 0) (end 0 5) (layer F.Fab) (width 0.1))
-  (pad 2 smd rect (at 4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
-  (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
-  (model Capacitors_SMD.3dshapes/CP_Elec_10x10.5.wrl
-    (at (xyz 0 0 0))
-    (scale (xyz 1 1 1))
-    (rotate (xyz 0 0 180))
-  )
-)
-}
+//  TODO processFolder
