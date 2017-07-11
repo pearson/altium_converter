@@ -289,7 +289,7 @@ end;
 
 procedure processPad(aPad : IPCB_Pad);
 var
-    width, height : TCoord;
+    width, height, offsetX, offsetY : TCoord;
 begin
     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
@@ -313,17 +313,34 @@ begin
     width := Max(aPad.HoleSize, aPad.TopXSize);
     height := Max(aPad.HoleSize, aPad.TopYSize);
 
+    // In KiCad pad position refers to the hole, in Altium - center of the copper,
+    // so if there is an offset, we need to adjust the postion, but only if there
+    // is a hole
+    if aPad.HoleSize <> 0 then
+    begin
+        offsetX := aPad.XPadOffset[aPad.Layer];
+        offsetY := aPad.YPadOffset[aPad.Layer];
+    end
+    else
+    begin
+        offsetX := 0;
+        offsetY := 0;
+    end;
+
     // TODO pad name in KiCad is limited to 4 chars, spaces are allowed (check)
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
     + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
-    + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
+    + ' (at ' + pcbXYToStr(aPad.X - offsetX, aPad.Y - offsetY)
      + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
     + '(size ' + XYToStr(width, height) + ') ');
 
-    // TODO layers
     if aPad.IsSurfaceMount then
     begin
-        WriteLn(outFile, '(layers F.Cu F.Paste F.Mask)');
+        case aPad.Layer of
+            eTopLayer:    WriteLn(outFile, '(layers F.Cu F.Paste F.Mask)');
+            eBottomLayer: WriteLn(outFile, '(layers B.Cu B.Paste B.Mask)');
+            else          log(footprint + ': invalid layer for pad ' + aPad.Name);
+        end;
     end
     else
     begin
@@ -343,6 +360,10 @@ begin
             eSlotHole:              // TODO incorrect?
                 Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize));  // TODO merge
         end;
+
+        if (offsetX <> 0) or (offsetY <> 0) then
+           Write(outFile, ' (offset ' + XYToStr(offsetX, offsetY) + ')');
+
         Write(outFile, ')');
         // TODO drill offset
 
