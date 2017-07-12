@@ -118,9 +118,6 @@ GenerateClassCluster=0
 [Generic_ScriptingSystem]
 StartProcName=pcblib_converter.pas>ConvertLibrary
 
-[Generic_Watches]
-0=defParams
-
 [OutputGroup1]
 Name=Netlist Outputs
 Description=

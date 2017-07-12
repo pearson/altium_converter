@@ -30,6 +30,14 @@ const
   // makes texts ineditable, but they are exactly converted)
   //STROKE_SILK_TEXT = true;
 
+  // 3D model path, if there is a file with the name matching the footprint,
+  // the model will be assigned to the converted footprint
+  MODEL_PATH = 'G:\Applications\Altium\CernLib\StepLib';
+
+  // whether to use full path to the model or just the model name
+  // (requires setting a variable in pcbnew, but then it is portable)
+  USE_FULL_MODEL_PATH = false;
+
 // defines layer mapping used for footprint conversion
 function layerMapping(aLayer : TLayer) : TPCB_String;
 begin

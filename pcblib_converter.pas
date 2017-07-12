@@ -27,15 +27,20 @@ uses StrUtils;
 var
   // converted footprint name, used for logging
   footprint : String;
+
+  // current output file
   outFile   : TextFile;
+
   // footprint origin
   fpX, fpY  : Integer;
+
   // default reference and value size in Altium
   textSizeAltium : Integer;
 
-// not possible in DelphiScript
-//type
-//  TDefParams = array[0..3] of TDynamicString;
+  // footprint relief settings
+  reliefGap : Integer;
+  reliefWidth : Integer;
+  reliefStyle : Integer;
 
 
 function pcbXYToStr(aX : TCoord, aY : TCoord) : TDynamicString;
@@ -145,9 +150,8 @@ begin
 end;
 
 
-// TODO move layer mapping to configuration file
 function layerToStr(aLayer : TLayer) : TPCB_String;
-begin                                    // TODO missing layers
+begin
     case aLayer of
         // these layers have direct counterparts
         eTopLayer:           result := 'F.Cu';
@@ -190,6 +194,24 @@ begin                                    // TODO missing layers
         eBottomSolder:       result := 'B.Mask';
         else                 result := layerMapping(aLayer);
     end;
+end;
+
+
+function find3DModel(aFootprint : TDynamicString) : TDynamicString;
+var
+    modelFile: TString;
+    // does not work, do not ask me..
+    //extensions : array[0..1] of TDynamicString;
+begin
+    //extensions[0] := '.stp';
+    //extensions[1] := '.step';
+
+    modelFile := MODEL_PATH + '\' + aFootprint;
+
+    if FileExists(modelFile + '.stp') then
+        result := ifElse(USE_FULL_MODEL_PATH, modelFile, aFootprint) + '.stp'
+    else if FileExists(modelFile + '.step') then
+        result := ifElse(USE_FULL_MODEL_PATH, modelFile, aFootprint) + '.step';
 end;
 
 
@@ -282,10 +304,10 @@ begin
 
     // TODO pad name in KiCad is limited to 4 chars, spaces are allowed (check)
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
-    + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
-    + ' (at ' + pcbXYToStr(aPad.X - offsetX, aPad.Y - offsetY)
-     + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
-    + '(size ' + XYToStr(width, height) + ') ');
+        + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
+        + ' (at ' + pcbXYToStr(aPad.X - offsetX, aPad.Y - offsetY)
+        + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
+        + '(size ' + XYToStr(width, height) + ') ');
 
     if aPad.IsSurfaceMount then
     begin
@@ -314,11 +336,11 @@ begin
                 Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize));  // TODO merge
         end;
 
+        // drill offset
         if (offsetX <> 0) or (offsetY <> 0) then
            Write(outFile, ' (offset ' + XYToStr(offsetX, offsetY) + ')');
 
         Write(outFile, ')');
-        // TODO drill offset
 
         Write(outFile, ' (layers *.Cu *.Paste *.Mask)');
     end;
@@ -333,8 +355,8 @@ begin
 
     WriteLn(outFile, ')');
 
-    // TODO clearance, zone_connect, thermal_gap, thermal_width
-    // zone_connect -> PlaneConenctionStyleForLayer?
+    // INFO clearance, zone_connect, thermal_gap, thermal_width seem to be
+    // correct only for pads placed on a board, where design rules are set
 end;
 
 
@@ -455,6 +477,7 @@ var
     objIterator : IPCB_GroupIterator;
     pcbObj      : IPCB_Primitive;
     bbox        : TCoordRect;
+    model       : TDynamicString;
 begin
     // TODO 3d model
     footprint := aFootprint.Name;
@@ -470,6 +493,7 @@ begin
     WriteLn(outFile, '(module ' + fixSpaces(footprint)
          + ' (layer F.Cu) (tedit 0)');
     WriteLn(outFile, '(descr "' + escapeQuotes(aFootprint.Description) + '")');
+
     // TODO smd/virtual
     //WriteLn(outFile, '(attr smd)');
     //WriteLn(outFile, '(tags xxx)');
@@ -482,7 +506,17 @@ begin
         WriteLn(outFile, '(solder_paste_margin '
             + sizeToStr(aFootprint.PasteMaskExpansion) + ')');
 
-    // TODO
+    // INFO documented, but it does not work
+    {if aFootprint.DefaultPCB3DModel <> '' then
+        WriteLn(outFile, '(model ' + aFootprint.DefaultPCB3DModel + ')');}
+    model := find3DModel(footprint);
+
+    if model <> '' then
+        WriteLn(outFile, '(model ' + model + ')');
+        // TODO at, scale, rotate
+
+    // INFO there are thermal relief settings, but they does not seem valid in
+    // libraries (only on a board with design rules designed)
     // WriteLn(outFile, '(clearance dim)');
     // WriteLn(outFile, '(zone_connect val');
     // WriteLn(outFile, '(thermal_width val)');
@@ -539,6 +573,8 @@ begin
     if pcbLib = nil then
         Exit;
 
+    // TODO set compNumber correctly, otherwise the progress bar does not work
+    // it seems impossible for footprint converter at the moment
     {try}
         {compReader := PCBServer.CreateLibCompInfoReader(pcbLib.DocumentName);}
         {compReader.ReadAllComponentInfo();}
@@ -668,4 +704,3 @@ begin
     end;
 end;
 
-//  TODO processFolder
