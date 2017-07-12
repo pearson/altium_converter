@@ -624,6 +624,15 @@ begin
         // Display a file open dialog and pick a library to be converted
         fileOpenDialog := TFileOpenDialog.Create(nil);
         fileOpenDialog.Title := 'Select footprint libraries';
+        // TODO it does not work :(
+        Include(fileOpenDialog.Options, fdoAllowMultiSelect);
+        Include(fileOpenDialog.Options, fdoFileMustExist);
+
+        with fileOpenDialog.FileTypes.Add do
+        begin
+          DisplayName := 'Footprint libraries (*.PcbLib)';
+          FileMask := '*.PcbLib';
+        end;
 
         if fileOpenDialog.Execute() then
         begin
