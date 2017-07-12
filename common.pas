@@ -24,10 +24,6 @@
 
 unit altium_kicad;
 
-const
-  // default parameter text height
-  PARAM_TEXT_SIZE = 60;
-
 var
   logList : TStringList;
   scaleNumerator, scaleDenominator : Integer;

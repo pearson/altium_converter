@@ -233,10 +233,10 @@ var
 begin
     paramPos := TLocation;
     paramPos.x := aComponent.Location.x;
-    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(PARAM_TEXT_SIZE * (aIndex * 1.5));
+    paramPos.y := aComponent.BoundingRectangle_Full().bottom - scaleToAltium(SCH_PARAM_TEXT_SIZE * (aIndex * 1.5));
 
     result := 'F' + IntToStr(aIndex) + ' "' + aValue + '" '
-            + locToStr(paramPos) + ' ' + IntToStr(PARAM_TEXT_SIZE) + ' H I L CNN';
+            + locToStr(paramPos) + ' ' + IntToStr(SCH_PARAM_TEXT_SIZE) + ' H I L CNN';
 end;
 
 
@@ -815,10 +815,9 @@ begin
     // Remove question marks from designator
     designator := fixName(StringReplace(aComponent.Designator.Text, '?', '', -1));
 
-    // TODO swappable?
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
     WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 '
-        + IntToStr(PARAM_TEXT_SIZE) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' L N');
+        + IntToStr(SCH_PARAM_TEXT_SIZE) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' L N');
 
 
     // Aliases

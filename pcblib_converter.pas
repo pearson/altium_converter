@@ -99,6 +99,14 @@ end;
 
 function isCopperLayer(aLayer : TLayer) : Boolean;
 begin
+    // none of the below works..
+    //result := (aLayer >= eTopLayer) and (aLayer <= eBottomLayer);
+    //result := (aLayer in SignalLayers);
+    {if aLayer in SignalLayers then
+        result := true
+    else
+        result := false;}
+
     case aLayer of
         eTopLayer,
         eMidLayer1,
@@ -131,14 +139,8 @@ begin
         eMidLayer28,
         eMidLayer29,
         eMidLayer30,
-        eBottomLayer,
-        eTopOverlay,
-        eBottomOverlay,
-        eTopPaste,
-        eBottomPaste,
-        eTopSolder,
-        eBottomSolder:       result := true;
-        else                 result := false;
+        eBottomLayer:       result := true;
+        else                result := false;
     end;
 end;
 
@@ -186,58 +188,7 @@ begin                                    // TODO missing layers
         eBottomPaste:        result := 'B.Paste';
         eTopSolder:          result := 'F.Mask';
         eBottomSolder:       result := 'B.Mask';
-
-    // arbitrary mapping, may need adjustments
-        eMechanical3:        result := 'Eco1.User';
-        eMechanical4:        result := 'Eco2.User';
-        eMechanical8:        result := 'Dwgs.User';
-        eMechanical14:       result := 'Cmts.User';
-        eMechanical15:       result := 'F.CrtYd';
-
-    // unsupported layers
-    // unmapped layers in KiCad that might be used here:
-    // Edge.Cuts, Margin, {B}.CrtYd, {F,B}.Adhes, {F,B}.Fab
-        eNoLayer,
-        eInternalPlane1,
-        eInternalPlane2,
-        eInternalPlane3,
-        eInternalPlane4,
-        eInternalPlane5,
-        eInternalPlane6,
-        eInternalPlane7,
-        eInternalPlane8,
-        eInternalPlane9,
-        eInternalPlane10,
-        eInternalPlane11,
-        eInternalPlane12,
-        eInternalPlane13,
-        eInternalPlane14,
-        eInternalPlane15,
-        eInternalPlane16,
-        eDrillGuide,
-        eKeepOutLayer,
-        eMechanical1,
-        eMechanical1,
-        eMechanical5,
-        eMechanical6,
-        eMechanical7,
-        eMechanical9,
-        eMechanical10,
-        eMechanical11,
-        eMechanical12,
-        eMechanical13,
-        eMechanical16,
-        eDrillDrawing,
-        eMultiLayer,
-        eConnectLayer,
-        eBackGroundLayer,
-        eDRCErrorLayer,
-        eHighlightLayer,
-        eGridColor1,
-        eGridColor10,
-        ePadHoleLayer,
-        eViaHoleLayer:
-        log(footprint + ': unhandled layer ' + cLayerStrings[aLayer]);
+        else                 result := layerMapping(aLayer);
     end;
 end;
 
@@ -412,6 +363,30 @@ begin
 end;
 
 
+// procedure to convert texts into lines, so the silkscreen texts are exactly the same
+// TODO: ConvertToStrokeArray is documented but unavailable
+{procedure strokeText(aText : IPCB_Text);
+var
+    count, i : Integer;
+    strokes : TStrokeArray;
+    layer, width : TDynamicString;
+begin
+    aText.ConvertToStrokeArray(count, strokes);
+    aText.Get
+
+    layer := layerToStr(aText.Layer);
+    width := sizeToStr(aText.Width);
+
+    for i := 0 to count - 1 do
+    begin
+        WriteLn(outFile, '(fp_line '
+           + '(start ' + pcbXYToStr(strokes[i].X1, strokes[i].Y1) + ') '
+           + '(end ' + pcbXYToStr(strokes[i].X2, strokes[i].Y2) + ') '
+           + '(layer ' + layer + ') ' + '(width ' + width + '))');
+    end;
+end;}
+
+
 procedure processText(aText : IPCB_Text);
 var
     layer : TDynamicString;
@@ -420,12 +395,25 @@ begin
     //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
     // )
 
+    {if STROKE_SILK_TEXT and ((aText.Layer = eTopOverlay) or (aText.Layer = eBottomOverlay)) then
+    begin
+        strokeText(aText);
+        Exit;
+    end;}
+
+    if aText.MirrorFlag then
+        log(footprint + ': mirrored text is not supported');
+
+    if aText.UseTTFonts then
+        log(footprint + ': true type fonts are not supported');
+
     layer := layerToStr(aText.Layer);
     if layer = '' then Exit;          // unknown layer
 
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
          + pcbXYToStr(aText.XLocation, aText.YLocation) + ')'
-         + ' (layer ' + layerToStr(aText.Layer) + ')');  // TODO hide
+         + ' (layer ' + layerToStr(aText.Layer)
+         + ifElse(aText.IsHidden, ' hide', '') + ')');
     WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)
          + ' ' + sizeToStr(aText.Size) + ')'
          + ' (thickness ' + sizeToStr(aText.Width) + ')))');
