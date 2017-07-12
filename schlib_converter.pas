@@ -818,7 +818,7 @@ begin
     // TODO swappable?
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
     WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 '
-        + IntToStr(PARAM_TEXT_SIZE) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' F N');
+        + IntToStr(PARAM_TEXT_SIZE) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' L N');
 
 
     // Aliases
