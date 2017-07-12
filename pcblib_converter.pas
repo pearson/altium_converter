@@ -30,6 +30,8 @@ var
   outFile   : TextFile;
   // footprint origin
   fpX, fpY  : Integer;
+  // default reference and value size in Altium
+  textSizeAltium : Integer;
 
 // not possible in DelphiScript
 //type
@@ -411,13 +413,16 @@ end;
 
 
 procedure processText(aText : IPCB_Text);
+var
+    layer : TDynamicString;
 begin
     // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
     //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
     // )
 
-    // TODO scale real type
-    // TODO reference value
+    layer := layerToStr(aText.Layer);
+    if layer = '' then Exit;          // unknown layer
+
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
          + pcbXYToStr(aText.XLocation, aText.YLocation) + ')'
          + ' (layer ' + layerToStr(aText.Layer) + ')');  // TODO hide
@@ -461,11 +466,16 @@ procedure processFootprint(aFootprint : IPCB_LibComponent);
 var
     objIterator : IPCB_GroupIterator;
     pcbObj      : IPCB_Primitive;
+    bbox        : TCoordRect;
 begin
     // TODO 3d model
     footprint := aFootprint.Name;
     fpX := aFootprint.X;
     fpY := aFootprint.Y;
+
+    // footprint bbox computed while processing children items
+    // (IPCB_LibComponent::BoundingRectangle() does not work)
+    bbox := TCoordRect;
 
     objIterator := aFootprint.GroupIterator_Create();
 
@@ -496,12 +506,27 @@ begin
         while pcbObj <> nil do
         begin
             processObject(pcbObj);
+            //bbox.left   := Min(bbox.left, pcbObj.BoundingRectangle.left);
+            //bbox.right  := Max(bbox.right, pcbObj.BoundingRectangle.right);
+            bbox.bottom := Min(bbox.bottom, pcbObj.BoundingRectangle.bottom);
+            bbox.top    := Max(bbox.top, pcbObj.BoundingRectangle.top);
             pcbObj := objIterator.NextPCBObject();
         end;
 
     finally
         aFootprint.GroupIterator_Destroy(objIterator);
     end;
+
+    // reference and value
+    WriteLn(outFile, '(fp_text reference REF** (at '
+         + pcbXYToStr(0, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
+    WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
+    WriteLn(outFile, ')');
+
+    WriteLn(outFile, '(fp_text value ' + footprint + ' (at '
+         + pcbXYToStr(0, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
+    WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
+    WriteLn(outFile, ')');
 
     WriteLn(outFile, ')');
 
@@ -613,6 +638,8 @@ begin
     //setScale(254, 100000000, 3, false);
     // keep ratio, with decreased numerator it is less likely to overflow
     setScale(127, 50000000, 3, false);
+
+    textSizeAltium := scaleToAltium(1);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'PCBLIB') then
     begin

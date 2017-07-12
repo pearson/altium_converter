@@ -117,11 +117,20 @@ end;
 
 
 function scaleToAltium(aVal : Integer) : Integer;
+var
+    i : Integer;
 begin
     if floatRescale then
-        result := Round(aVal * scaleNumerator / scaleDenominator)
+    begin
+        result := Round(aVal * scaleNumerator / scaleDenominator);
+    end
     else
+    begin
         result := fixedRescale(aVal, scaleDenominator, scaleNumerator);
+
+        for i := 1 to precision do
+            result := result * 10;
+    end;
 end;
 
 
@@ -242,7 +251,7 @@ end;
 
 function escapeQuotes(aString : TDynamicString) : TDynamicString;
 begin
-    result := StringReplace(aString, '"', '\\"', -1);
+    result := StringReplace(aString, '"', '\"', -1);
 end;
 
 
