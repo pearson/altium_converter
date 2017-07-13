@@ -61,6 +61,8 @@ begin
     case aItem.TopShape of
         eNoShape:               log(footprint + ': invalid shape (eNoShape)');
 
+        // KiCad and Altium have different definitions for rounded rectangle
+        // corner percentage, hence division by 2
         eRoundedRectangular,    // TODO is it ok?
         eRoundRectShape:        result := 'roundrect (roundrect_rratio 0.'
             + Format('%.2d', [aItem.CRPercentage[aItem.Layer] div 2]) + ')';
@@ -274,7 +276,7 @@ begin
     if aPad.Mode <> ePadMode_Simple then
     begin
         // there is still a chance if all layers have the same shape and size
-        // (basically simple stack)
+        // (basically it is a simple stack)
         if not((aPad.Mode = ePadMode_LocalStack) and
           (aPad.TopShape = aPad.MidShape) and (aPad.MidShape = aPad.BotShape) and
           (aPad.TopXSize = aPad.MidXSize) and (aPad.MidXSize = aPad.BotXSize) and
@@ -305,7 +307,7 @@ begin
         offsetY := 0;
     end;
 
-    // TODO pad name in KiCad is limited to 4 chars, spaces are allowed (check)
+    // pad name in KiCad is limited to 4 chars, spaces are allowed
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
         + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad)
         + ' (at ' + pcbXYToStr(aPad.X - offsetX, aPad.Y - offsetY)
@@ -330,13 +332,15 @@ begin
         case aPad.HoleType of
             eRoundHole:
                 Write(outFile, sizeToStr(aPad.HoleSize));
+
             eSquareHole:
             begin
-                log(footprint + ': square hole approximated with an oval hole');
-                Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize));
+                log(footprint + ': square hole approximated with an round hole');
+                Write(outFile, sizeToStr(aPad.HoleSize));
             end;
-            eSlotHole:              // TODO incorrect?
-                Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize));  // TODO merge
+
+            eSlotHole:
+                Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize));
         end;
 
         // drill offset
