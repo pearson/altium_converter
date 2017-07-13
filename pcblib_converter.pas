@@ -56,13 +56,14 @@ begin
 end;
 
 
-function shapeToStr(aShape : TShape) : TDynamicString;
+function shapeToStr(aItem : IPCB_Primitive) : TDynamicString;
 begin
-    case aShape of
+    case aItem.TopShape of
         eNoShape:               log(footprint + ': invalid shape (eNoShape)');
 
         eRoundedRectangular,    // TODO is it ok?
-        eRoundRectShape:        result := 'roundrect';
+        eRoundRectShape:        result := 'roundrect (roundrect_rratio 0.'
+            + Format('%.2d', [aItem.CRPercentage[aItem.Layer] div 2]) + ')';
 
         eRectangular:           result := 'rect';
 
@@ -306,7 +307,7 @@ begin
 
     // TODO pad name in KiCad is limited to 4 chars, spaces are allowed (check)
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
-        + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad.TopShape)
+        + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad)
         + ' (at ' + pcbXYToStr(aPad.X - offsetX, aPad.Y - offsetY)
         + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
         + '(size ' + XYToStr(width, height) + ') ');
