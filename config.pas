@@ -48,7 +48,7 @@ begin
     case aLayer of
         //eDrillGuide:         result := '';
         //eKeepOutLayer:       result := '';
-        //eMechanical1:        result := '';
+        eMechanical1:        result := 'Cmts.User';
         //eMechanical2:        result := '';
         eMechanical3:        result := 'Eco1.User';
         eMechanical4:        result := 'Eco2.User';

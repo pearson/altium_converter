@@ -211,7 +211,9 @@ begin
     if FileExists(modelFile + '.stp') then
         result := ifElse(USE_FULL_MODEL_PATH, modelFile, aFootprint) + '.stp'
     else if FileExists(modelFile + '.step') then
-        result := ifElse(USE_FULL_MODEL_PATH, modelFile, aFootprint) + '.step';
+        result := ifElse(USE_FULL_MODEL_PATH, modelFile, aFootprint) + '.step'
+    else
+        result := '';
 end;
 
 
@@ -479,7 +481,6 @@ var
     bbox        : TCoordRect;
     model       : TDynamicString;
 begin
-    // TODO 3d model
     footprint := aFootprint.Name;
     fpX := aFootprint.X;
     fpY := aFootprint.Y;
@@ -522,6 +523,9 @@ begin
     // WriteLn(outFile, '(thermal_width val)');
     // WriteLn(outFile, '(thermal_gap val)');
 
+    bbox.bottom := 2147483647;  //High(Integer);
+    bbox.top    := -2147483648; //Low(Integer);
+
     try
         pcbObj := objIterator.FirstPCBObject;
 
@@ -541,12 +545,12 @@ begin
 
     // reference and value
     WriteLn(outFile, '(fp_text reference REF** (at '
-         + pcbXYToStr(0, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
+         + pcbXYToStr(fpX, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
     WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
     WriteLn(outFile, ')');
 
     WriteLn(outFile, '(fp_text value ' + footprint + ' (at '
-         + pcbXYToStr(0, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
+         + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
     WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
     WriteLn(outFile, ')');
 
