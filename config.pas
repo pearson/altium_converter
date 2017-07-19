@@ -22,10 +22,18 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *}
 
+// SCHEMATIC SYMBOL CONVERTER
+/////////////////////////////
+
 const
-  // default parameter text height (schematics)
+  // default parameter text height
   SCH_PARAM_TEXT_SIZE = 60;
 
+
+// FOOTPRINT CONVERTER
+//////////////////////
+
+const
   // should the silkscreen texts be stroked (slows down the conversion,
   // makes texts ineditable, but they are exactly converted)
   //STROKE_SILK_TEXT = true;
@@ -37,6 +45,12 @@ const
   // whether to use full path to the model or just the model name
   // (requires setting a variable in pcbnew, but then it is portable)
   USE_FULL_MODEL_PATH = false;
+
+
+// Compatibility settings
+  // approximate octagonal pads with rounded rectangles
+  OCTAGON_TO_ROUNDRECT = false
+
 
 // defines layer mapping used for footprint conversion
 function layerMapping(aLayer : TLayer) : TPCB_String;

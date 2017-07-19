@@ -70,10 +70,16 @@ begin
         eRectangular:           result := 'rect';
 
         eOctagonal:
-        begin
-            log(footprint + ': octagonal shape is approximated with a round rectangle');
-            result := 'roundrect';
-        end;
+            if OCTAGON_TO_ROUNDRECT then
+            begin
+                log(footprint + ': octagonal shape approximated with a round rectangle');
+                result := 'roundrect';
+            end
+            else
+            begin
+                log(footprint + ': aborting conversion, octagonal shapes are disabled');
+                raise;
+            end;
 
         eRounded,
         eCircleShape:           result := 'circle';
@@ -466,7 +472,7 @@ begin
 end;
 
 
-procedure processFootprint(aFootprint : IPCB_LibComponent);
+function processFootprint(aFootprint : IPCB_LibComponent) : Boolean;
 var
     objIterator : IPCB_GroupIterator;
     pcbObj      : IPCB_Primitive;
@@ -476,6 +482,7 @@ begin
     footprint := aFootprint.Name;
     fpX := aFootprint.X;
     fpY := aFootprint.Y;
+    result := true;     // assume it is ok
 
     // footprint bbox computed while processing children items
     // (IPCB_LibComponent::BoundingRectangle() does not work)
@@ -509,7 +516,7 @@ begin
         // TODO at, scale, rotate
 
     // INFO there are thermal relief settings, but they does not seem valid in
-    // libraries (only on a board with design rules designed)
+    // libraries (only on a board with design rules set)
     // WriteLn(outFile, '(clearance dim)');
     // WriteLn(outFile, '(zone_connect val');
     // WriteLn(outFile, '(thermal_width val)');
@@ -519,16 +526,20 @@ begin
     bbox.top    := -2147483648; //Low(Integer);
 
     try
-        pcbObj := objIterator.FirstPCBObject;
+        try
+            pcbObj := objIterator.FirstPCBObject;
 
-        while pcbObj <> nil do
-        begin
-            processObject(pcbObj);
-            //bbox.left   := Min(bbox.left, pcbObj.BoundingRectangle.left);
-            //bbox.right  := Max(bbox.right, pcbObj.BoundingRectangle.right);
-            bbox.bottom := Min(bbox.bottom, pcbObj.BoundingRectangle.bottom);
-            bbox.top    := Max(bbox.top, pcbObj.BoundingRectangle.top);
-            pcbObj := objIterator.NextPCBObject();
+            while pcbObj <> nil do
+            begin
+                processObject(pcbObj);
+                //bbox.left   := Min(bbox.left, pcbObj.BoundingRectangle.left);
+                //bbox.right  := Max(bbox.right, pcbObj.BoundingRectangle.right);
+                bbox.bottom := Min(bbox.bottom, pcbObj.BoundingRectangle.bottom);
+                bbox.top    := Max(bbox.top, pcbObj.BoundingRectangle.top);
+                pcbObj := objIterator.NextPCBObject();
+            end;
+        except
+            result := false;
         end;
 
     finally
@@ -563,6 +574,8 @@ var
   libName       : TDynamicString;
   libPath       : TString;
   libOutPath    : TString;
+  fileOutPath   : TString;
+  valid         : Boolean;
 begin
     pcbLib := PCBServer.GetCurrentPCBLibrary;
 
@@ -616,12 +629,17 @@ begin
     begin
         // Create file for the converted footprint
         try
-            AssignFile(outFile, libOutPath + fixFileName(footprint.Name) + '.kicad_mod');
+            fileOutPath := libOutPath + fixFileName(footprint.Name) + '.kicad_mod';
+            AssignFile(outFile, fileOutPath);
             Rewrite(outFile);
-            processFootprint(footprint);;
+            valid := processFootprint(footprint);
         finally
             CloseFile(outFile);
         end;
+
+        // Do not save invalid footprints
+        if not valid then
+            DeleteFile(fileOutPath);
 
         ProgressUpdate(1);
         footprint := fpIterator.NextPCBObject;
