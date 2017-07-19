@@ -43,6 +43,13 @@ var
   reliefStyle : Integer;
 
 
+procedure throw(aMessage : TDynamicString);
+begin
+    log(aMessage);
+    raise; // no, you cannot create exception objects in DelphiScript..
+end;
+
+
 function pcbXYToStr(aX : TCoord, aY : TCoord) : TDynamicString;
 begin
     // inverted Y-axis
@@ -59,7 +66,7 @@ end;
 function shapeToStr(aItem : IPCB_Primitive) : TDynamicString;
 begin
     case aItem.TopShape of
-        eNoShape:               log(footprint + ': invalid shape (eNoShape)');
+        eNoShape: throw(footprint + ': invalid shape (eNoShape)');
 
         // KiCad and Altium have different definitions for rounded rectangle
         // corner percentage, hence division by 2
@@ -67,7 +74,7 @@ begin
         eRoundRectShape:        result := 'roundrect (roundrect_rratio 0.'
             + Format('%.2d', [aItem.CRPercentage[aItem.Layer] div 2]) + ')';
 
-        eRectangular:           result := 'rect';
+        eRectangular:  result := 'rect';
 
         eOctagonal:
             if OCTAGON_TO_ROUNDRECT then
@@ -76,17 +83,19 @@ begin
                 result := 'roundrect';
             end
             else
-            begin
-                log(footprint + ': aborting conversion, octagonal shapes are disabled');
-                raise;
-            end;
+                throw(footprint + ': aborting conversion, octagonal shapes are disabled');
 
         eRounded,
-        eCircleShape:           result := 'circle';
+        eCircleShape: result := 'circle';
 
-        eArcShape:              log(footrpint + ': arc shape is not supported');
-        eTerminator:            log(footprint + ': terminator shape is not supported');
-        eRotatedRectShape:      log(footprint + ': rotated rectangular shape is not supported')
+        eArcShape:
+            throw(footprint + ': aborting conversion, arc shape is not supported');
+
+        eTerminator:
+            throw(footprint + ': aborting conversion, terminator shape is not supported');
+
+        eRotatedRectShape:
+            throw(footprint + ': aborting conversion, rotated rectangular shape is not supported');
     end;
 end;
 
@@ -203,6 +212,14 @@ begin
         eBottomSolder:       result := 'B.Mask';
         else                 result := layerMapping(aLayer);
     end;
+
+    if (result = '') then
+    begin
+        log(footprint + ': unhandled layer ' + cLayerStrings[aLayer]);
+
+        if ABORT_ON_UNKNOWN_LAYER then
+            throw(footprint + ': aborting conversion');
+    end;
 end;
 
 
@@ -237,14 +254,9 @@ begin
     // (fp_arc (start 6.25 5.3) (end -6.25 5.3) [(angle 100)] (layer F.CrtYd) (width 0.05))
 
     if isCopperLayer(aArc) then
-    begin
-        log(footprint + ': copper arcs are not supported');
-        Exit;
-    end;
+        throw(footprint + ': aborting conversion, copper arcs are not supported');
 
     layer := layerToStr(aArc.Layer);
-    if layer = '' then Exit;          // unknown layer
-
     isCircle := (aArc.StartAngle = 0) and (aArc.EndAngle = 360);
     endPt := TLocation;
 
@@ -287,12 +299,17 @@ begin
           (aPad.TopShape = aPad.MidShape) and (aPad.MidShape = aPad.BotShape) and
           (aPad.TopXSize = aPad.MidXSize) and (aPad.MidXSize = aPad.BotXSize) and
           (aPad.TopYSize = aPad.MidYSize) and (aPad.MidYSize = aPad.BotYSize)) then
-            log(footprint + ': only simple pads are supported: ' + aPad.Name);
+            throw(footprint + ': aborting conversion, only simple pads are supported: ' + aPad.Name);
     end;
 
     if Length(aPad.Name) > 4 then
-        log(footprint + ': pad name truncated from ' + aPad.Name
-            + ' to ' + Copy(aPad.Name, 1, 4));
+    begin
+        if TRUNCATE_PAD_NAMES then
+            log(footprint + ': pad name truncated from ' + aPad.Name
+                + ' to ' + Copy(aPad.Name, 1, 4))
+        else
+            throw(footprint + ': aborting conversion, too long pad name');
+    end;
 
     // in Altium holes bigger than pads are allowed, in KiCad it is not possible
     // resize pads to the hole size if they are smaller
@@ -309,16 +326,17 @@ begin
     if aPad.IsSurfaceMount then
     begin
         case aPad.Layer of
-            eTopLayer:    WriteLn(outFile, '(layers F.Cu F.Paste F.Mask)');
-            eBottomLayer: WriteLn(outFile, '(layers B.Cu B.Paste B.Mask)');
-            else          log(footprint + ': invalid layer for pad ' + aPad.Name);
+            eTopLayer:    Write(outFile, '(layers F.Cu F.Paste F.Mask)');
+            eBottomLayer: Write(outFile, '(layers B.Cu B.Paste B.Mask)');
+            else throw(footprint + ': aborting conversion, invalid layer '
+                    + cLayerStrings[aPad.Layer] + ' for SMD pad ' + aPad.Name);
         end;
     end
     else
     begin
         // TODO could be easily handled for slot holes and angles 90, 180, 270
         if (aPad.HoleRotation <> 0) and (aPad.HoleType <> eRoundHole) then
-            log(footprint + ': rotated holes are not supported');
+            throw(footprint + ': aborting conversion, rotated holes are not supported');
 
         Write(outFile, '(drill ');
 
@@ -327,10 +345,7 @@ begin
                 Write(outFile, sizeToStr(aPad.HoleSize));
 
             eSquareHole:
-            begin
-                log(footprint + ': square hole approximated with an round hole');
-                Write(outFile, sizeToStr(aPad.HoleSize));
-            end;
+                throw(footprint + ': aborting conversion, square holes are not supported');
 
             eSlotHole:
                 Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize));
@@ -345,13 +360,8 @@ begin
         Write(outFile, ' (layers *.Cu *.Paste *.Mask)');
     end;
 
-    // TODO not entirely true, only valid if 'Solder Mask Override' field is true
-    if aPad.Cache.SolderMaskExpansion <> 0 then
-        Write(outFile, ' (solder_mask_margin ' + sizeToStr(aPad.SolderMaskExpansion) + ')');
-
-    // TODO not entirely true, only valid if 'Paste Mask Override' field is true
-    if aPad.Cache.PasteMaskExpansion <> 0 then
-        Write(outFile, ' (solder_paste_margin ' + sizeToStr(aPad.PasteMaskExpansion) + ')');
+    Write(outFile, ' (solder_mask_margin ' + sizeToStr(aPad.SolderMaskExpansion) + ')');
+    Write(outFile, ' (solder_paste_margin ' + sizeToStr(aPad.PasteMaskExpansion) + ')');
 
     WriteLn(outFile, ')');
 
@@ -362,20 +372,12 @@ end;
 
 
 procedure processTrack(aTrack : IPCB_Track);
-var
-    layer : TDynamicString;
 begin
     // graphical line
     // (fp_line (start 6.25 5.3) (end -6.25 5.3) (layer F.CrtYd) (width 0.05))
 
     if isCopperLayer(aTrack) then
-    begin
-        log(footprint + ': copper tracks are not supported');
-        Exit;
-    end;
-
-    layer := layerToStr(aTrack.Layer);
-    if layer = '' then Exit;          // unknown layer
+        throw(footprint + ': aborting conversion, copper tracks are not supported');
 
     WriteLn(outFile, '(fp_line '
        + '(start ' + pcbXYToStr(aTrack.X1, aTrack.Y1) + ') '
@@ -410,8 +412,6 @@ end;}
 
 
 procedure processText(aText : IPCB_Text);
-var
-    layer : TDynamicString;
 begin
     // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
     //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
@@ -424,13 +424,18 @@ begin
     end;}
 
     if aText.MirrorFlag then
-        log(footprint + ': mirrored text is not supported');
+        throw(footprint + ': mirrored text is not supported');
 
     if aText.UseTTFonts then
+    begin
         log(footprint + ': true type fonts are not supported');
 
-    layer := layerToStr(aText.Layer);
-    if layer = '' then Exit;          // unknown layer
+        if ALLOW_TTF then
+            log(footprint + ': true type fonts are drawn using the stroke font')
+        else
+            throw(footprint + ': aborting, true type fonts disabled');
+
+    end;
 
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
          + pcbXYToStr(aText.XLocation, aText.YLocation) + ')'
@@ -446,28 +451,28 @@ end;
 procedure processObject(aObject : IPCB_Primitive);
 begin
     case aObject.ObjectId of
-        eNoObject:              log(footprint + ': contains an invalid object (eNoObject)');
+        eNoObject:              throw(footprint + ': contains an invalid object (eNoObject)');
         eArcObject:             processArc(aObject);
         ePadObject:             processPad(aObject);
-        eViaObject:             log(footprint + ': vias are not supported');
+        eViaObject:             throw(footprint + ': vias are not supported');
         eTrackObject:           processTrack(aObject);
         eTextObject:            processText(aObject);
-        eFillObject:            log(footprint + ': fills are not supported');
-        eConnectionObject:      log(footprint + ': connections are not supported');
-        eNetObject:             log(footprint + ': nets are not supported');
-        eComponentObject:       log(footprint + ': components are not supported');
-        ePolyObject:            log(footprint + ': polys are not supported');
-        eDimensionObject:       log(footprint + ': dimensions are not supported');
-        eCoordinateObject:      log(footprint + ': coordinates are not supported');
-        eClassObject:           log(footprint + ': classes are not supported');
-        eRuleObject:            log(footprint + ': rules are not supported');
-        eFromToObject:          log(footprint + ': fromtos are not supported');
-        eViolationObject:       log(footprint + ': violations are not supported');
-        eEmbeddedObject:        log(footprint + ': embedded objects are not supported');
-        eTraceObject:           log(footprint + ': traces are not supported');
-        eSpareViaObject:        log(footprint + ': spare vias are not supported');
-        eBoardObject:           log(footprint + ': boards are not supported');
-        eBoardOutlineObject:    log(footprint + ': board outlines are not supported');
+        eFillObject:            throw(footprint + ': fills are not supported');
+        eConnectionObject:      throw(footprint + ': connections are not supported');
+        eNetObject:             throw(footprint + ': nets are not supported');
+        eComponentObject:       throw(footprint + ': components are not supported');
+        ePolyObject:            throw(footprint + ': polys are not supported');
+        eDimensionObject:       throw(footprint + ': dimensions are not supported');
+        eCoordinateObject:      throw(footprint + ': coordinates are not supported');
+        eClassObject:           throw(footprint + ': classes are not supported');
+        eRuleObject:            throw(footprint + ': rules are not supported');
+        eFromToObject:          throw(footprint + ': fromtos are not supported');
+        eViolationObject:       throw(footprint + ': violations are not supported');
+        eEmbeddedObject:        throw(footprint + ': embedded objects are not supported');
+        eTraceObject:           throw(footprint + ': traces are not supported');
+        eSpareViaObject:        throw(footprint + ': spare vias are not supported');
+        eBoardObject:           throw(footprint + ': boards are not supported');
+        eBoardOutlineObject:    throw(footprint + ': board outlines are not supported');
     end;
 end;
 
@@ -490,23 +495,24 @@ begin
 
     objIterator := aFootprint.GroupIterator_Create();
 
-    WriteLn(outFile, '(module ' + fixSpaces(footprint)
-         + ' (layer F.Cu) (tedit 0)');
+    WriteLn(outFile, '(module ' + fixSpaces(footprint) + ' (layer F.Cu) (tedit 0)');
     WriteLn(outFile, '(descr "' + escapeQuotes(aFootprint.Description) + '")');
 
-    // TODO smd/virtual
+    // TODO smd/virtual attributes, tags
     //WriteLn(outFile, '(attr smd)');
     //WriteLn(outFile, '(tags xxx)');
 
+    // TODO is it ever set?
     if aFootprint.SolderMaskExpansion <> 0 then
         WriteLn(outFile, '(solder_mask_margin '
             + sizeToStr(aFootprint.SolderMaskExpansion) + ')');
 
+    // TODO is it ever set?
     if aFootprint.PasteMaskExpansion <> 0 then
         WriteLn(outFile, '(solder_paste_margin '
             + sizeToStr(aFootprint.PasteMaskExpansion) + ')');
 
-    // INFO documented, but it does not work
+    // INFO documented property, but it does not work
     {if aFootprint.DefaultPCB3DModel <> '' then
         WriteLn(outFile, '(model ' + aFootprint.DefaultPCB3DModel + ')');}
     model := find3DModel(footprint);
@@ -546,18 +552,21 @@ begin
         aFootprint.GroupIterator_Destroy(objIterator);
     end;
 
-    // reference and value
-    WriteLn(outFile, '(fp_text reference REF** (at '
-         + pcbXYToStr(fpX, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
-    WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
-    WriteLn(outFile, ')');
+    if result = true then
+    begin
+        // reference and value
+        WriteLn(outFile, '(fp_text reference REF** (at '
+             + pcbXYToStr(fpX, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
+        WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
+        WriteLn(outFile, ')');
 
-    WriteLn(outFile, '(fp_text value ' + footprint + ' (at '
-         + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
-    WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
-    WriteLn(outFile, ')');
+        WriteLn(outFile, '(fp_text value ' + footprint + ' (at '
+             + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
+        WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
+        WriteLn(outFile, ')');
 
-    WriteLn(outFile, ')');
+        WriteLn(outFile, ')');
+    end;
 
     footprint := '';
 end;

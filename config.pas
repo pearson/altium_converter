@@ -49,7 +49,19 @@ const
 
 // Compatibility settings
   // approximate octagonal pads with rounded rectangles
-  OCTAGON_TO_ROUNDRECT = false
+  OCTAGON_TO_ROUNDRECT = false;
+
+  // abort when one of unmapped layers is used
+  ABORT_ON_UNKNOWN_LAYER = true;
+
+  // KiCad pad names are limited to 4 characters, should truncated pad names
+  // be allowed?
+  TRUNCATE_PAD_NAMES = false;
+
+  // Should truetype fonts be converted? WARNING: Using stroked font instead of
+  // truetype will five *very* different results. You need to verify if
+  // there are no collisions with other objects.
+  CONVERT_TTF = false;
 
 
 // defines layer mapping used for footprint conversion
@@ -108,7 +120,5 @@ begin
         //eGridColor10:        result := '';
         //ePadHoleLayer:       result := '';
         //eViaHoleLayer:       result := '';
-
-        else log(footprint + ': unhandled layer ' + cLayerStrings[aLayer]);
     end;
 end;
