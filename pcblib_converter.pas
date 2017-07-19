@@ -269,7 +269,7 @@ end;
 
 procedure processPad(aPad : IPCB_Pad);
 var
-    width, height, offsetX, offsetY : TCoord;
+    width, height : TCoord;
 begin
     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
@@ -293,24 +293,10 @@ begin
     width := Max(aPad.HoleSize, aPad.TopXSize);
     height := Max(aPad.HoleSize, aPad.TopYSize);
 
-    // In KiCad pad position refers to the hole, in Altium - center of the copper,
-    // so if there is an offset, we need to adjust the postion, but only if there
-    // is a hole
-    if aPad.HoleSize <> 0 then
-    begin
-        offsetX := aPad.XPadOffset[aPad.Layer];
-        offsetY := aPad.YPadOffset[aPad.Layer];
-    end
-    else
-    begin
-        offsetX := 0;
-        offsetY := 0;
-    end;
-
     // pad name in KiCad is limited to 4 chars, spaces are allowed
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
         + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad)
-        + ' (at ' + pcbXYToStr(aPad.X - offsetX, aPad.Y - offsetY)
+        + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
         + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
         + '(size ' + XYToStr(width, height) + ') ');
 
@@ -324,7 +310,8 @@ begin
     end
     else
     begin
-        if aPad.HoleRotation <> 0 then
+        // TODO could be easily handled for slot holes and angles 90, 180, 270
+        if (aPad.HoleRotation <> 0) and (aPad.HoleType <> eRoundHole) then
             log(footprint + ': rotated holes are not supported');
 
         Write(outFile, '(drill ');
@@ -344,8 +331,8 @@ begin
         end;
 
         // drill offset
-        if (offsetX <> 0) or (offsetY <> 0) then
-           Write(outFile, ' (offset ' + XYToStr(offsetX, offsetY) + ')');
+        if (aPad.XPadOffset[aPad.Layer] <> 0) or (aPad.YPadOffset[aPad.Layer] <> 0) then
+           Write(outFile, ' (offset ' + XYToStr(aPad.XPadOffset[aPad.Layer], -aPad.YPadOffset[aPad.Layer]) + ')');
 
         Write(outFile, ')');
 
