@@ -679,11 +679,22 @@ begin
 end;
 
 
+procedure init(aDummy : Integer);
+begin
+    // Altium internally uses nanoinches, KiCad PCB format uses millimeters,
+    // even though internally pcbnew uses nanometers
+    //setScale(254, 100000000, 3, false);
+    // keep ratio, with decreased numerator it is less likely to overflow
+    setScale(127, 50000000, 3, false);
+
+    textSizeAltium := scaleToAltium(1);
+end;
+
+
 procedure ConvertLibrary;
 var
     fileOpenDialog : TFileOpenDialog;
     i : Integer;
-    {Files : TStringList;}
     doc : IServerDocument;
     multipleFiles : Boolean;
 begin
@@ -695,13 +706,7 @@ begin
     if Client.CurrentView <> nil then
         doc := Client.CurrentView.OwnerDocument;
 
-    // Altium internally uses nanoinches, KiCad PCB format uses millimeters,
-    // even though internally pcbnew uses nanometers
-    //setScale(254, 100000000, 3, false);
-    // keep ratio, with decreased numerator it is less likely to overflow
-    setScale(127, 50000000, 3, false);
-
-    textSizeAltium := scaleToAltium(1);
+    init(0);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'PCBLIB') then
     begin
@@ -742,4 +747,63 @@ begin
 
         fileOpenDialog.Free();
     end;
+end;
+
+
+procedure BatchConversion;
+var
+    fileOpenDialog : TFileOpenDialog;
+    i : Integer;
+    doc : IServerDocument;
+    listFile : TextFile;
+    listFileName : TDynamicString;
+    buf : String;
+begin
+    init(0);
+
+    // Display a file open dialog and pick a library to be converted
+    fileOpenDialog := TFileOpenDialog.Create(nil);
+    fileOpenDialog.Title := 'Select library list';
+    // TODO it does not work :(
+    Include(fileOpenDialog.Options, fdoFileMustExist);
+
+    with fileOpenDialog.FileTypes.Add do
+    begin
+        DisplayName := 'Library list (*.txt)';
+        FileMask := '*.txt';
+    end;
+
+    if fileOpenDialog.Execute() then
+    begin
+        listFileName := fileOpenDialog.Files[0];
+
+        AssignFile(listFile, listFileName);
+        Reset(listFile);
+
+        while not Eof(listFile) do
+        begin
+            ReadLn(listFile, buf);
+
+            if buf[0] = '#' then  // comments
+                continue;
+
+            if FileExists(buf) then
+                doc := Client.OpenDocument('PcbLib', buf)
+            else if FileExists(ExtractFilePath(listFileName) + buf) then
+                doc := Client.OpenDocument('PcbLib', ExtractFilePath(listFileName) + buf)
+            else
+                continue;
+
+            if doc <> nil then
+            begin
+                Client.ShowDocument(doc);
+                processLibrary(false);
+                Client.CloseDocument(doc);
+            end;
+        end;
+
+        CloseFile(listFile);
+    end;
+
+    fileOpenDialog.Free();
 end;

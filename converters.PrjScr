@@ -118,12 +118,6 @@ GenerateClassCluster=0
 [Generic_ScriptingSystem]
 StartProcName=pcblib_converter.pas>ConvertLibrary
 
-[Generic_ScriptingSystemBreakpoints]
-ModuleName1=C:\Users\msuminsk\altium_converter\pcblib_converter.pas
-Line1=85
-Condition1=
-Enabled1=True
-
 [OutputGroup1]
 Name=Netlist Outputs
 Description=
