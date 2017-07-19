@@ -22,6 +22,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
  *}
 
+ // GENERAL
+ //////////
+
+const
+  // show conversion log when finished
+  SHOW_LOG = true;
+
 // SCHEMATIC SYMBOL CONVERTER
 /////////////////////////////
 

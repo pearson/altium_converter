@@ -585,6 +585,9 @@ var
   libOutPath    : TString;
   fileOutPath   : TString;
   valid         : Boolean;
+
+  logDocument   : IServer_Document;
+  logPath       : TDynamicString;
 begin
     pcbLib := PCBServer.GetCurrentPCBLibrary;
 
@@ -657,8 +660,17 @@ begin
     pcbLib.LibraryIterator_Destroy(fpIterator);
 
     log('Converted');
-    logList.SaveToFile(libPath + '\' + fixFileName(libName) + '.txt');
+    logPath := libPath + '\' + fixFileName(libName) + '.txt';
+    logList.SaveToFile(logPath);
     logList.Free();
+
+    if SHOW_LOG then
+    begin
+        logDocument := Client.OpenDocument('Text', logPath);
+
+        if logDocument <> nil then
+            Client.ShowDocument(logDocument);
+    end;
 
     ProgressFinish(0);
     ShowMessage('Saved in ' + libOutPath);

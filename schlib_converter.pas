@@ -917,6 +917,9 @@ var
 
   libName       : TDynamicString;
   libOutPath    : TString;
+
+  logDocument   : IServer_Document;
+  logPath       : TDynamicString;
 begin
     template := aTemplate;
     fontMgr := SchServer.FontManager;
@@ -1011,6 +1014,14 @@ begin
     log('Converted');
     logList.SaveToFile(libOutPath + fixFileName(libName) + '.txt');
     logList.Free();
+
+    if SHOW_LOG then
+    begin
+        logDocument := Client.OpenDocument('Text', logPath);
+
+        if logDocument <> nil then
+            Client.ShowDocument(logDocument);
+    end;
 
     ProgressFinish(0);
     //ShowMessage('Saved in ' + libOutPath);
