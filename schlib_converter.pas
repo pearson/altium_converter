@@ -907,7 +907,7 @@ begin
 end;
 
 
-procedure processLibrary(aTemplate : Boolean);
+procedure processLibrary(aShowMsg : Boolean);
 var
   component     : ISch_Component;
   schLib        : ISch_Lib;
@@ -921,7 +921,6 @@ var
   logDocument   : IServer_Document;
   logPath       : TDynamicString;
 begin
-    template := aTemplate;
     fontMgr := SchServer.FontManager;
     schLib := SchServer.GetCurrentSchDocument;
 
@@ -1024,7 +1023,9 @@ begin
     end;
 
     ProgressFinish(0);
-    //ShowMessage('Saved in ' + libOutPath);
+
+    if aShowMsg then
+        ShowMessage('Saved in ' + libOutPath);
 end;
 
 
@@ -1034,8 +1035,10 @@ var
     i : Integer;
     Files : TStringList;
     doc : IServerDocument;
+    multipleFiles : Boolean;
 begin
      doc := nil;
+     template := aTemplate;
 
      if Client.CurrentView <> nil then
          doc := Client.CurrentView.OwnerDocument;
@@ -1045,7 +1048,7 @@ begin
     if (doc <> nil) and (UpperCase(doc.Kind) = 'SCHLIB') then
     begin
         // Process only current library
-        processLibrary(aTemplate);
+        processLibrary(true);
     end
     else
     begin
@@ -1055,6 +1058,7 @@ begin
         // TODO it does not work :(
         Include(fileOpenDialog.Options, fdoAllowMultiSelect);
         Include(fileOpenDialog.Options, fdoFileMustExist);
+
         with fileOpenDialog.FileTypes.Add do
         begin
           DisplayName := 'Schematic symbol libraries (*.SchLib)';
@@ -1063,6 +1067,8 @@ begin
 
         if fileOpenDialog.Execute() then
         begin
+            multipleFiles := fileOpenDialog.Files.Count > 1;
+
             for i := 0 to fileOpenDialog.Files.Count - 1 do
             begin
                 doc := Client.OpenDocument('SchLib', fileOpenDialog.Files[i]);
@@ -1070,7 +1076,7 @@ begin
                 if doc <> nil then
                 begin
                     Client.ShowDocument(doc);
-                    processLibrary(aTemplate);
+                    processLibrary(not multipleFiles);
                     Client.CloseDocument(doc);
                 end;
             end;

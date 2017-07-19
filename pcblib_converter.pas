@@ -83,19 +83,19 @@ begin
                 result := 'roundrect';
             end
             else
-                throw(footprint + ': aborting conversion, octagonal shapes are disabled');
+                throw(footprint + ': ERROR: octagonal shapes are disabled');
 
         eRounded,
         eCircleShape: result := 'circle';
 
         eArcShape:
-            throw(footprint + ': aborting conversion, arc shape is not supported');
+            throw(footprint + ': ERROR: arc shape is not supported');
 
         eTerminator:
-            throw(footprint + ': aborting conversion, terminator shape is not supported');
+            throw(footprint + ': ERROR: terminator shape is not supported');
 
         eRotatedRectShape:
-            throw(footprint + ': aborting conversion, rotated rectangular shape is not supported');
+            throw(footprint + ': ERROR: rotated rectangular shape is not supported');
     end;
 end;
 
@@ -254,7 +254,7 @@ begin
     // (fp_arc (start 6.25 5.3) (end -6.25 5.3) [(angle 100)] (layer F.CrtYd) (width 0.05))
 
     if isCopperLayer(aArc) then
-        throw(footprint + ': aborting conversion, copper arcs are not supported');
+        throw(footprint + ': ERROR: copper arcs are not supported');
 
     layer := layerToStr(aArc.Layer);
     isCircle := (aArc.StartAngle = 0) and (aArc.EndAngle = 360);
@@ -299,7 +299,7 @@ begin
           (aPad.TopShape = aPad.MidShape) and (aPad.MidShape = aPad.BotShape) and
           (aPad.TopXSize = aPad.MidXSize) and (aPad.MidXSize = aPad.BotXSize) and
           (aPad.TopYSize = aPad.MidYSize) and (aPad.MidYSize = aPad.BotYSize)) then
-            throw(footprint + ': aborting conversion, only simple pads are supported: ' + aPad.Name);
+            throw(footprint + ': ERROR: only simple pads are supported: ' + aPad.Name);
     end;
 
     if Length(aPad.Name) > 4 then
@@ -308,7 +308,7 @@ begin
             log(footprint + ': pad name truncated from ' + aPad.Name
                 + ' to ' + Copy(aPad.Name, 1, 4))
         else
-            throw(footprint + ': aborting conversion, too long pad name');
+            throw(footprint + ': ERROR: too long pad name');
     end;
 
     // in Altium holes bigger than pads are allowed, in KiCad it is not possible
@@ -328,7 +328,7 @@ begin
         case aPad.Layer of
             eTopLayer:    Write(outFile, '(layers F.Cu F.Paste F.Mask)');
             eBottomLayer: Write(outFile, '(layers B.Cu B.Paste B.Mask)');
-            else throw(footprint + ': aborting conversion, invalid layer '
+            else throw(footprint + ': ERROR: invalid layer '
                     + cLayerStrings[aPad.Layer] + ' for SMD pad ' + aPad.Name);
         end;
     end
@@ -336,7 +336,7 @@ begin
     begin
         // TODO could be easily handled for slot holes and angles 90, 180, 270
         if (aPad.HoleRotation <> 0) and (aPad.HoleType <> eRoundHole) then
-            throw(footprint + ': aborting conversion, rotated holes are not supported');
+            throw(footprint + ': ERROR: rotated holes are not supported');
 
         Write(outFile, '(drill ');
 
@@ -345,7 +345,7 @@ begin
                 Write(outFile, sizeToStr(aPad.HoleSize));
 
             eSquareHole:
-                throw(footprint + ': aborting conversion, square holes are not supported');
+                throw(footprint + ': ERROR: square holes are not supported');
 
             eSlotHole:
                 Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize));
@@ -377,7 +377,7 @@ begin
     // (fp_line (start 6.25 5.3) (end -6.25 5.3) (layer F.CrtYd) (width 0.05))
 
     if isCopperLayer(aTrack) then
-        throw(footprint + ': aborting conversion, copper tracks are not supported');
+        throw(footprint + ': ERROR: copper tracks are not supported');
 
     WriteLn(outFile, '(fp_line '
        + '(start ' + pcbXYToStr(aTrack.X1, aTrack.Y1) + ') '
@@ -433,7 +433,7 @@ begin
         if ALLOW_TTF then
             log(footprint + ': true type fonts are drawn using the stroke font')
         else
-            throw(footprint + ': aborting, true type fonts disabled');
+            throw(footprint + ': ERROR: true type fonts disabled');
 
     end;
 
@@ -451,28 +451,28 @@ end;
 procedure processObject(aObject : IPCB_Primitive);
 begin
     case aObject.ObjectId of
-        eNoObject:              throw(footprint + ': contains an invalid object (eNoObject)');
+        eNoObject:              throw(footprint + ': ERROR: contains an invalid object (eNoObject)');
         eArcObject:             processArc(aObject);
         ePadObject:             processPad(aObject);
-        eViaObject:             throw(footprint + ': vias are not supported');
+        eViaObject:             throw(footprint + ': ERROR: vias are not supported');
         eTrackObject:           processTrack(aObject);
         eTextObject:            processText(aObject);
-        eFillObject:            throw(footprint + ': fills are not supported');
-        eConnectionObject:      throw(footprint + ': connections are not supported');
-        eNetObject:             throw(footprint + ': nets are not supported');
-        eComponentObject:       throw(footprint + ': components are not supported');
-        ePolyObject:            throw(footprint + ': polys are not supported');
-        eDimensionObject:       throw(footprint + ': dimensions are not supported');
-        eCoordinateObject:      throw(footprint + ': coordinates are not supported');
-        eClassObject:           throw(footprint + ': classes are not supported');
-        eRuleObject:            throw(footprint + ': rules are not supported');
-        eFromToObject:          throw(footprint + ': fromtos are not supported');
-        eViolationObject:       throw(footprint + ': violations are not supported');
-        eEmbeddedObject:        throw(footprint + ': embedded objects are not supported');
-        eTraceObject:           throw(footprint + ': traces are not supported');
-        eSpareViaObject:        throw(footprint + ': spare vias are not supported');
-        eBoardObject:           throw(footprint + ': boards are not supported');
-        eBoardOutlineObject:    throw(footprint + ': board outlines are not supported');
+        eFillObject:            throw(footprint + ': ERROR: fills are not supported');
+        eConnectionObject:      throw(footprint + ': ERROR: connections are not supported');
+        eNetObject:             throw(footprint + ': ERROR: nets are not supported');
+        eComponentObject:       throw(footprint + ': ERROR: components are not supported');
+        ePolyObject:            throw(footprint + ': ERROR: polys are not supported');
+        eDimensionObject:       throw(footprint + ': ERROR: dimensions are not supported');
+        eCoordinateObject:      throw(footprint + ': ERROR: coordinates are not supported');
+        eClassObject:           throw(footprint + ': ERROR: classes are not supported');
+        eRuleObject:            throw(footprint + ': ERROR: rules are not supported');
+        eFromToObject:          throw(footprint + ': ERROR: fromtos are not supported');
+        eViolationObject:       throw(footprint + ': ERROR: violations are not supported');
+        eEmbeddedObject:        throw(footprint + ': ERROR: embedded objects are not supported');
+        eTraceObject:           throw(footprint + ': ERROR: traces are not supported');
+        eSpareViaObject:        throw(footprint + ': ERROR: spare vias are not supported');
+        eBoardObject:           throw(footprint + ': ERROR: boards are not supported');
+        eBoardOutlineObject:    throw(footprint + ': ERROR: board outlines are not supported');
     end;
 end;
 
@@ -572,7 +572,7 @@ begin
 end;
 
 
-procedure processLibrary(aDummy : Integer);
+procedure processLibrary(aShowMsg : Boolean);
 var
   footprint     : IPCB_LibComponent;
   pcbLib        : IPCB_Library;
@@ -673,7 +673,9 @@ begin
     end;
 
     ProgressFinish(0);
-    ShowMessage('Saved in ' + libOutPath);
+
+    if aShowMsg then
+        ShowMessage('Saved in ' + libOutPath);
 end;
 
 
@@ -683,6 +685,7 @@ var
     i : Integer;
     {Files : TStringList;}
     doc : IServerDocument;
+    multipleFiles : Boolean;
 begin
     if PCBServer = nil then
         exit;
@@ -703,7 +706,7 @@ begin
     if (doc <> nil) and (UpperCase(doc.Kind) = 'PCBLIB') then
     begin
         // Process only current library
-        processLibrary(0);
+        processLibrary(true);
     end
     else
     begin
@@ -722,6 +725,8 @@ begin
 
         if fileOpenDialog.Execute() then
         begin
+            multipleFiles := fileOpenDialog.Files.Count > 1;
+
             for i := 0 to fileOpenDialog.Files.Count - 1 do
             begin
                 doc := Client.OpenDocument('PcbLib', fileOpenDialog.Files[i]);
@@ -729,7 +734,7 @@ begin
                 if doc <> nil then
                 begin
                     Client.ShowDocument(doc);
-                    processLibrary(0);
+                    processLibrary(not multipleFiles);
                     Client.CloseDocument(doc);
                 end;
             end;
@@ -738,4 +743,3 @@ begin
         fileOpenDialog.Free();
     end;
 end;
-
