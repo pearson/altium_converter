@@ -438,13 +438,13 @@ begin
 
     // Altium uses left bottom corner as a reference,
     // while in KiCad it is the text centre
-    // TODO !! rotation
     pos := TLocation;
     pos.x := aText.BoundingRectangle.left + (aText.BoundingRectangle.right - aText.BoundingRectangle.left) / 2;
     pos.y := aText.BoundingRectangle.bottom + (aText.BoundingRectangle.top - aText.BoundingRectangle.bottom) / 2;
 
-    WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
-         + pcbXYToStr(pos.x, pos.y) + ')'
+    WriteLn(outFile, '(fp_text user "' + aText.Text + '" (at '
+         + pcbXYToStr(pos.x, pos.y)
+         + ifElse(aText.Rotation <> 0, ' ' + IntToStr(aText.Rotation), '') + ')'
          + ' (layer ' + layerToStr(aText.Layer)
          + ifElse(aText.IsHidden, ' hide', '') + ')');
     WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)
@@ -524,7 +524,7 @@ begin
     model := find3DModel(footprint);
 
     if model <> '' then
-        WriteLn(outFile, '(model ' + model + ')');
+        WriteLn(outFile, '(model "' + model + '")');
         // TODO at, scale, rotate
 
     // INFO there are thermal relief settings, but they does not seem valid in
@@ -566,7 +566,7 @@ begin
         WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
         WriteLn(outFile, ')');
 
-        WriteLn(outFile, '(fp_text value ' + footprint + ' (at '
+        WriteLn(outFile, '(fp_text value "' + footprint + '" (at '
              + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
         WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
         WriteLn(outFile, ')');
