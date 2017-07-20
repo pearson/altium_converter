@@ -245,7 +245,6 @@ end;
 
 procedure processArc(aArc : IPCB_Arc);
 var
-    layer : TDynamicString;
     endPt : TLocation;
     angle : TAngle;
     isCircle : Boolean;
@@ -256,7 +255,6 @@ begin
     if isCopperLayer(aArc) then
         throw(footprint + ': ERROR: copper arcs are not supported');
 
-    layer := layerToStr(aArc.Layer);
     isCircle := (aArc.StartAngle = 0) and (aArc.EndAngle = 360);
     endPt := TLocation;
 

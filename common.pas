@@ -101,7 +101,7 @@ begin
         result := 0
 
     // check for overflow in the multiplication result
-    else if aVal < 2147483646 div aNumerator then
+    else if Abs(aVal) < 2147483646 div aNumerator then
         result := divRound(aVal * aNumerator, aDenominator)
 
     else if aVal > 0 then

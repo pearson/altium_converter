@@ -88,7 +88,7 @@ begin
         //eMechanical5:        result := '';
         //eMechanical6:        result := '';
         //eMechanical7:        result := '';
-        eMechanical8:        result := 'F.Fab';
+        eMechanical8:        result := 'Cmts.User';
         //eMechanical9:        result := '';
         //eMechanical10:       result := '';
         //eMechanical11:       result := '';
