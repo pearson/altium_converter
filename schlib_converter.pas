@@ -1029,6 +1029,12 @@ begin
 end;
 
 
+procedure init(aDummy : Integer);
+begin
+    setScale(1, 10000, 0, false);
+end;
+
+
 procedure processFiles(aTemplate : Boolean);
 var
     fileOpenDialog : TFileOpenDialog;
@@ -1043,7 +1049,7 @@ begin
      if Client.CurrentView <> nil then
          doc := Client.CurrentView.OwnerDocument;
 
-    setScale(1, 10000, 0, false);
+    init(0);
 
     if (doc <> nil) and (UpperCase(doc.Kind) = 'SCHLIB') then
     begin
@@ -1083,56 +1089,70 @@ begin
         end;
 
         fileOpenDialog.Free();
+    end;
+
+    if multipleFiles then
+        ShowMessage('Finished!');
+end;
 
 
-        // if file browser does not work, use the following way of batch processing
-        {Files := TStringList.Create();
-        Files.Append('Analog & Interface.SchLib');
-        Files.Append('Bonding.SchLib');
-        Files.Append('Capacitors.SchLib');
-        Files.Append('Connectors.SchLib');
-        Files.Append('Crystals & Oscillators.SchLib');
-        Files.Append('DC-DC Converters.SchLib');
-        Files.Append('Diodes.SchLib');
-        Files.Append('Fasteners & Fixing.SchLib');
-        Files.Append('Fasteners & Fixings.SchLib');
-        Files.Append('Fuses.SchLib');
-        Files.Append('Graphical Shematic Symbol.SchLib');
-        Files.Append('Heat-Sinks.SchLib');
-        Files.Append('Inductors & Transformers.SchLib');
-        Files.Append('LEDs & Displays.SchLib');
-        Files.Append('Logic.SchLib');
-        Files.Append('Metal Screening Box.SchLib');
-        Files.Append('Operational Amplifiers.SchLib');
-        Files.Append('Optocouplers.SchLib');
-        Files.Append('PCB Modules.SchLib');
-        Files.Append('Pads.SchLib');
-        Files.Append('Power Supplies.SchLib');
-        Files.Append('Regulators.SchLib');
-        Files.Append('Relays.SchLib');
-        Files.Append('Resistors.SchLib');
-        Files.Append('Sensors.SchLib');
-        Files.Append('Sockets.SchLib');
-        Files.Append('Standard Logic.SchLib');
-        Files.Append('Switches.SchLib');
-        Files.Append('Transistors.SchLib');
+procedure BatchConversion;
+var
+    fileOpenDialog : TFileOpenDialog;
+    i : Integer;
+    doc : IServerDocument;
+    listFile : TextFile;
+    listFileName : TDynamicString;
+    buf : String;
+begin
+    init(0);
 
-        for i := 0 to Files.Count() - 1 do
+    // Display a file open dialog and pick a library to be converted
+    fileOpenDialog := TFileOpenDialog.Create(nil);
+    fileOpenDialog.Title := 'Select library list';
+    // TODO it does not work :(
+    Include(fileOpenDialog.Options, fdoFileMustExist);
+
+    with fileOpenDialog.FileTypes.Add do
+    begin
+        DisplayName := 'Library list (*.txt)';
+        FileMask := '*.txt';
+    end;
+
+    if fileOpenDialog.Execute() then
+    begin
+        listFileName := fileOpenDialog.Files[0];
+
+        AssignFile(listFile, listFileName);
+        Reset(listFile);
+
+        while not Eof(listFile) do
         begin
-            doc := Client.OpenDocument('SchLib', 'Z:\home\kicadlib-gen\templates\' + Files[i]);
+            ReadLn(listFile, buf);
+
+            if buf[0] = '#' then  // comments
+                continue;
+
+            if FileExists(buf) then
+                doc := Client.OpenDocument('SchLib', buf)
+            else if FileExists(ExtractFilePath(listFileName) + buf) then
+                doc := Client.OpenDocument('SchLib', ExtractFilePath(listFileName) + buf)
+            else
+                continue;
 
             if doc <> nil then
             begin
                 Client.ShowDocument(doc);
-                processLibrary(aTemplate);
+                processLibrary(false);
                 Client.CloseDocument(doc);
             end;
         end;
 
-        Files.Free();}
-
-        ShowMessage('Finished!');
+        CloseFile(listFile);
     end;
+
+    fileOpenDialog.Free();
+    ShowMessage('Finished!');
 end;
 
 

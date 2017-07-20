@@ -724,8 +724,8 @@ begin
 
         with fileOpenDialog.FileTypes.Add do
         begin
-          DisplayName := 'Footprint libraries (*.PcbLib)';
-          FileMask := '*.PcbLib';
+            DisplayName := 'Footprint libraries (*.PcbLib)';
+            FileMask := '*.PcbLib';
         end;
 
         if fileOpenDialog.Execute() then
@@ -747,6 +747,9 @@ begin
 
         fileOpenDialog.Free();
     end;
+
+    if multipleFiles then
+         ShowMessage('Finished!');
 end;
 
 
@@ -806,4 +809,5 @@ begin
     end;
 
     fileOpenDialog.Free();
+    ShowMessage('Finished!');
 end;
