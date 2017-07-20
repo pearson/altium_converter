@@ -215,10 +215,10 @@ begin
 
     if (result = '') then
     begin
-        log(footprint + ': unhandled layer ' + cLayerStrings[aLayer]);
-
         if ABORT_ON_UNKNOWN_LAYER then
-            throw(footprint + ': aborting conversion');
+            throw(footprint + ': ERROR: unmapped layer ' + cLayerStrings[aLayer]);
+        else
+            log(footprint + ': unmapped layer ' + cLayerStrings[aLayer]);
     end;
 end;
 
