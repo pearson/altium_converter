@@ -216,7 +216,7 @@ begin
     if (result = '') then
     begin
         if ABORT_ON_UNKNOWN_LAYER then
-            throw(footprint + ': ERROR: unmapped layer ' + cLayerStrings[aLayer]);
+            throw(footprint + ': ERROR: unmapped layer ' + cLayerStrings[aLayer])
         else
             log(footprint + ': unmapped layer ' + cLayerStrings[aLayer]);
     end;
@@ -410,6 +410,8 @@ end;}
 
 
 procedure processText(aText : IPCB_Text);
+var
+    pos : TLocation;
 begin
     // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
     //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
@@ -432,11 +434,17 @@ begin
             log(footprint + ': true type fonts are drawn using the stroke font')
         else
             throw(footprint + ': ERROR: true type fonts disabled');
-
     end;
 
+    // Altium uses left bottom corner as a reference,
+    // while in KiCad it is the text centre
+    // TODO !! rotation
+    pos := TLocation;
+    pos.x := aText.BoundingRectangle.left + (aText.BoundingRectangle.right - aText.BoundingRectangle.left) / 2;
+    pos.y := aText.BoundingRectangle.bottom + (aText.BoundingRectangle.top - aText.BoundingRectangle.bottom) / 2;
+
     WriteLn(outFile, '(fp_text user ' + aText.Text + ' (at '
-         + pcbXYToStr(aText.XLocation, aText.YLocation) + ')'
+         + pcbXYToStr(pos.x, pos.y) + ')'
          + ' (layer ' + layerToStr(aText.Layer)
          + ifElse(aText.IsHidden, ' hide', '') + ')');
     WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)

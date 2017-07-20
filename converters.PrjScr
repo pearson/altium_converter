@@ -118,6 +118,10 @@ GenerateClassCluster=0
 [Generic_ScriptingSystem]
 StartProcName=pcblib_converter.pas>ConvertLibrary
 
+[Generic_Watches]
+0=aX
+1=fpX
+
 [Generic_ScriptingSystemBreakpoints]
 ModuleName1=C:\Users\msuminsk\altium_converter\schlib_converter.pas
 Line1=1033
