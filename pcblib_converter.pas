@@ -464,7 +464,7 @@ begin
     pos.x := aText.BoundingRectangle.left + (aText.BoundingRectangle.right - aText.BoundingRectangle.left) / 2;
     pos.y := aText.BoundingRectangle.bottom + (aText.BoundingRectangle.top - aText.BoundingRectangle.bottom) / 2;
 
-    WriteLn(outFile, '(fp_text user "' + aText.Text + '" (at '
+    WriteLn(outFile, '(fp_text user "' + escapeQuotes(aText.Text) + '" (at '
          + pcbXYToStr(pos.x, pos.y)
          + ifElse(aText.Rotation <> 0, ' ' + IntToStr(aText.Rotation), '') + ')'
          + ' (layer ' + layerToStr(aText.Layer)
@@ -523,7 +523,7 @@ begin
 
     objIterator := aFootprint.GroupIterator_Create();
 
-    WriteLn(outFile, '(module ' + fixSpaces(footprint) + ' (layer F.Cu) (tedit 0)');
+    WriteLn(outFile, '(module "' + escapeQuotes(fixSpaces(footprint)) + '" (layer F.Cu) (tedit 0)');
     WriteLn(outFile, '(descr "' + escapeQuotes(aFootprint.Description) + '")');
 
     // TODO smd/virtual attributes, tags
@@ -546,7 +546,7 @@ begin
     model := find3DModel(footprint);
 
     if model <> '' then
-        WriteLn(outFile, '(model "' + model + '")');
+        WriteLn(outFile, '(model "' + escapeQuotes(model) + '")');
         // TODO at, scale, rotate
 
     // INFO there are thermal relief settings, but they does not seem valid in
@@ -588,7 +588,7 @@ begin
         WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
         WriteLn(outFile, ')');
 
-        WriteLn(outFile, '(fp_text value "' + footprint + '" (at '
+        WriteLn(outFile, '(fp_text value "' + escapeQuotes(footprint) + '" (at '
              + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
         WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
         WriteLn(outFile, ')');
