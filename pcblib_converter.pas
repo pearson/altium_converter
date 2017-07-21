@@ -377,7 +377,7 @@ begin
 
         Write(outFile, ')');
 
-        Write(outFile, ' (layers *.Cu *.Paste *.Mask)');
+        Write(outFile, ' (layers *.Cu *.Mask)');
     end;
 
     Write(outFile, ' (solder_mask_margin ' + sizeToStr(solderMargin) + ')');
