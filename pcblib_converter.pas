@@ -285,7 +285,7 @@ end;
 
 procedure processPad(aPad : IPCB_Pad);
 var
-    width, height : TCoord;
+    width, height, pasteMargin, solderMargin : TCoord;
 begin
     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
@@ -309,10 +309,32 @@ begin
             throw(footprint + ': ERROR: too long pad name');
     end;
 
-    // in Altium holes bigger than pads are allowed, in KiCad it is not possible
-    // resize pads to the hole size if they are smaller
-    width := Max(aPad.HoleSize, aPad.TopXSize);
-    height := Max(aPad.HoleSize, aPad.TopYSize);
+    if (aPad.HoleSize > aPad.TopXSize) or (aPad.HoleSize > aPad.TopYSize) then
+    begin
+        // TODO we could handle cases when paste margin & solder margin are
+        // completely covered by the hole, but it will be an ugly if
+        // keep in mind that the margins depend on the pad shape, not on the
+        // hole shape, so each hole-pad shape combination needs to be tested
+        if aPad.TopXSize <> aPad.TopYSize then
+            throw(footprint + ': ERROR: pads with different height and width and hole smaller than the pad size are not supported');
+
+        // in Altium holes bigger than pads are allowed, in KiCad it is not possible
+        // resize pads to the hole size if they are smaller
+        width := Max(aPad.HoleSize, aPad.TopXSize);
+        height := Max(aPad.HoleSize, aPad.TopYSize);
+
+        // Altium computes solder and paste clearance basing on the pad size,
+        // but if the pad size is smaller than the hole - it has to be adjusted
+        pasteMargin := Max(0, aPad.PasteMaskExpansion - (aPad.HoleSize - aPad.TopXSize) div 2);
+        solderMargin := Max(0, aPad.SolderMaskExpansion - (aPad.HoleSize - aPad.TopXSize) div 2);
+    end
+    else
+    begin  // normal case (hole smaller than the pad size)
+        width := aPad.TopXSize;
+        height := aPad.TopYSize;
+        pasteMargin := aPad.PasteMaskExpansion;
+        solderMargin := aPad.SolderMaskExpansion;
+    end;
 
     // pad name in KiCad is limited to 4 chars, spaces are allowed
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
@@ -358,8 +380,8 @@ begin
         Write(outFile, ' (layers *.Cu *.Paste *.Mask)');
     end;
 
-    Write(outFile, ' (solder_mask_margin ' + sizeToStr(aPad.SolderMaskExpansion) + ')');
-    Write(outFile, ' (solder_paste_margin ' + sizeToStr(aPad.PasteMaskExpansion) + ')');
+    Write(outFile, ' (solder_mask_margin ' + sizeToStr(solderMargin) + ')');
+    Write(outFile, ' (solder_paste_margin ' + sizeToStr(pasteMargin) + ')');
 
     WriteLn(outFile, ')');
 
