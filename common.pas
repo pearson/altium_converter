@@ -54,7 +54,7 @@ var
 begin
     for i := 1 to Length(aText) do
     begin
-        if {(aText[i] = '\r') or }(aText[i] = '\n') then
+        if {(aText[i] = #10) or }(aText[i] = #13) then
         begin
             result := true;
             Exit;

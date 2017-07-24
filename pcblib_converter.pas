@@ -491,6 +491,19 @@ begin
 end;
 
 
+procedure processFill(aFill : IPCB_Fill);
+begin
+    if aFill.Rotation <> 0 then
+        throw(footprint + ': ERROR: rotated fills are not supported');
+
+    WriteLn(outFile, '(fp_poly (pts' +
+         + ' (xy ' + pcbXYToStr(aFill.X1Location, aFill.Y1Location) + ')'
+         + ' (xy ' + pcbXYToStr(aFill.X2Location, aFill.Y2Location) + '))'
+         + ' (layer ' + layerToStr(aFill.Layer) + ')'
+         + ' (width 0))');
+end;
+
+
 procedure processObject(aObject : IPCB_Primitive);
 begin
     case aObject.ObjectId of
@@ -500,7 +513,7 @@ begin
         eViaObject:             throw(footprint + ': ERROR: vias are not supported');
         eTrackObject:           processTrack(aObject);
         eTextObject:            processText(aObject);
-        eFillObject:            throw(footprint + ': ERROR: fills are not supported');
+        eFillObject:            {processFill(aObject);} throw(footprint + ': ERROR: fills are not supported');
         eConnectionObject:      throw(footprint + ': ERROR: connections are not supported');
         eNetObject:             throw(footprint + ': ERROR: nets are not supported');
         eComponentObject:       throw(footprint + ': ERROR: components are not supported');
