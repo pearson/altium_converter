@@ -48,6 +48,23 @@ begin
 end;
 
 
+function isMultiline(aText : TDynamicString) : Boolean;
+var
+    i : Integer;
+begin
+    for i := 1 to Length(aText) do
+    begin
+        if {(aText[i] = '\r') or }(aText[i] = '\n') then
+        begin
+            result := true;
+            Exit;
+        end;
+    end;
+
+    result := false;
+end;
+
+
 procedure setScale(aScaleNum, aScaleDenom, aPrecision : Integer;
                    aFloatRescale : Boolean);
 var

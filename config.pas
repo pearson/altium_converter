@@ -82,12 +82,12 @@ begin
         //eDrillGuide:         result := '';
         //eKeepOutLayer:       result := '';
         eMechanical1:        result := 'Cmts.User';
-        //eMechanical2:        result := '';
+        eMechanical2:        result := 'Dwgs.User';
         eMechanical3:        result := 'Eco1.User';
         eMechanical4:        result := 'Eco2.User';
         //eMechanical5:        result := '';
         //eMechanical6:        result := '';
-        //eMechanical7:        result := '';
+        eMechanical7:        result := 'Dwgs.User';
         eMechanical8:        result := 'Cmts.User';
         //eMechanical9:        result := '';
         //eMechanical10:       result := '';
@@ -96,9 +96,9 @@ begin
         eMechanical13:       result := 'Dwgs.User';
         eMechanical14:       result := 'Dwgs.User';
         eMechanical15:       result := 'F.CrtYd';
-        //eMechanical16:       result := '';
+        eMechanical16:       result :='Cmts.User';
         // ...mechanical layer numbering continues up to 32
-        eDrillDrawing:       result := 'B.Fab';
+        eDrillDrawing:       result := 'F.Fab';
 
         // not used in footprints?
         //eNoLayer:            result := '';

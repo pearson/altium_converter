@@ -122,12 +122,6 @@ StartProcName=pcblib_converter.pas>ConvertLibrary
 0=aX
 1=fpX
 
-[Generic_ScriptingSystemBreakpoints]
-ModuleName1=C:\Users\msuminsk\altium_converter\schlib_converter.pas
-Line1=1033
-Condition1=
-Enabled1=True
-
 [OutputGroup1]
 Name=Netlist Outputs
 Description=

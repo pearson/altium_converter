@@ -306,7 +306,7 @@ begin
             log(footprint + ': pad name truncated from ' + aPad.Name
                 + ' to ' + Copy(aPad.Name, 1, 4))
         else
-            throw(footprint + ': ERROR: too long pad name');
+            throw(footprint + ': ERROR: too long pad name: ' + aPad.Name);
     end;
 
     if (aPad.HoleSize > aPad.TopXSize) or (aPad.HoleSize > aPad.TopYSize) then
@@ -434,6 +434,7 @@ end;}
 procedure processText(aText : IPCB_Text);
 var
     pos : TLocation;
+    rotation : TAngle;
 begin
     // (fp_text reference R1 (at 0 0.127) (layer F.SilkS) hide
     //     (effects (font (size 1.397 1.27) (thickness 0.2032)))
@@ -458,6 +459,20 @@ begin
             throw(footprint + ': ERROR: true type fonts disabled');
     end;
 
+    if isMultiline(aText.Text) then
+        throw(footprint + ': ERROR: multiline texts are not supported: ' + aText.Text);
+
+    rotation := aText.Rotation;
+
+    if rotation >= 270 then
+        Dec(rotation, 360);
+
+    if rotation <= -270 then
+        Inc(rotation, 360);
+
+    if (rotation > 90) or (rotation < -90) then
+        throw(footprint + ': ERROR: text rotation has to be in range [-90,90]: ' + aText.Text);
+
     // Altium uses left bottom corner as a reference,
     // while in KiCad it is the text centre
     pos := TLocation;
@@ -466,7 +481,7 @@ begin
 
     WriteLn(outFile, '(fp_text user "' + escapeQuotes(aText.Text) + '" (at '
          + pcbXYToStr(pos.x, pos.y)
-         + ifElse(aText.Rotation <> 0, ' ' + IntToStr(aText.Rotation), '') + ')'
+         + ifElse(rotation <> 0, ' ' + IntToStr(rotation), '') + ')'
          + ' (layer ' + layerToStr(aText.Layer)
          + ifElse(aText.IsHidden, ' hide', '') + ')');
     WriteLn(outFile, '    (effects (font (size ' + sizeToStr(aText.Size)
