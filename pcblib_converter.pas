@@ -86,7 +86,8 @@ begin
                 throw(footprint + ': ERROR: octagonal shapes are disabled');
 
         eRounded,
-        eCircleShape: result := 'circle';
+        eCircleShape:
+            result := ifElse(aItem.TopXSize = aItem.TopYSize, 'circle', 'roundrect (roundrect_rratio 0.5)');
 
         eArcShape:
             throw(footprint + ': ERROR: arc shape is not supported');
