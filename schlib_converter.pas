@@ -1043,11 +1043,11 @@ var
     doc : IServerDocument;
     multipleFiles : Boolean;
 begin
-     doc := nil;
-     template := aTemplate;
+    doc := nil;
+    template := aTemplate;
 
-     if Client.CurrentView <> nil then
-         doc := Client.CurrentView.OwnerDocument;
+    if Client.CurrentView <> nil then
+        doc := Client.CurrentView.OwnerDocument;
 
     init(0);
 
@@ -1096,7 +1096,7 @@ begin
 end;
 
 
-procedure BatchConversion;
+procedure BatchTemplateConversion;
 var
     fileOpenDialog : TFileOpenDialog;
     i : Integer;
@@ -1106,6 +1106,7 @@ var
     buf : String;
 begin
     init(0);
+    template := true;
 
     // Display a file open dialog and pick a library to be converted
     fileOpenDialog := TFileOpenDialog.Create(nil);
