@@ -253,7 +253,7 @@ begin
     // handles both arcs and circles (special kind of arc)
     // (fp_arc (start 6.25 5.3) (end -6.25 5.3) [(angle 100)] (layer F.CrtYd) (width 0.05))
 
-    if isCopperLayer(aArc) then
+    if isCopperLayer(aArc.Layer) then
         throw(footprint + ': ERROR: copper arcs are not supported');
 
     isCircle := (aArc.StartAngle = 0) and (aArc.EndAngle = 360);
@@ -397,7 +397,7 @@ begin
     // graphical line
     // (fp_line (start 6.25 5.3) (end -6.25 5.3) (layer F.CrtYd) (width 0.05))
 
-    if isCopperLayer(aTrack) then
+    if isCopperLayer(aTrack.Layer) then
         throw(footprint + ': ERROR: copper tracks are not supported');
 
     WriteLn(outFile, '(fp_line '
