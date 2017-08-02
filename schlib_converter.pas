@@ -57,7 +57,7 @@ function partMode(aObject : ISch_GraphicalObject) : TDynamicString;
 begin
     // Currently only two modes are supported by KiCad
     result := ifElse(partCount > 1, IntToStr(aObject.OwnerPartId), '0')
-            + ' ' + ifElse(modeCount = 2, IntToStr(aObject.OwnerPartDisplayMode + 1), '0');
+            + ' ' + IntToStr(aObject.OwnerPartDisplayMode + 1);
 end;
 
 
@@ -751,6 +751,12 @@ end;
 
 procedure processObject(aObject : ISch_GraphicalObject);
 begin
+    if (aObject.ObjectId = eImplementation) or
+           (aObject.ObjectId = eImplementationMap) or
+           (aObject.ObjectId = eImplementationsList) or
+           (aObject.OwnerPartDisplayMode >= 2) then
+       Exit;
+
     case aObject.ObjectId of
         ePin:            processPin(aObject);
         eRectangle:      processRectangle(aObject);
@@ -801,7 +807,7 @@ begin
     partCount := aComponent.PartCount;
 
     if modeCount > 2 then
-        log('components with more than 2 modes are not supported');
+        log(component + ': more than 2 modes (graphical representations) are not supported');
 
     WriteLn(outFile, '#');
     WriteLn(outFile, '# ' + component);
@@ -916,6 +922,7 @@ var
   compNumber    : Integer;
 
   libName       : TDynamicString;
+  libPath       : TString;
   libOutPath    : TString;
 
   logDocument   : IServer_Document;
@@ -941,7 +948,8 @@ begin
 
     libName := schLib.DocumentName;
     libName := StringReplace(ExtractFileName(libName), '.SchLib', '', -1);
-    libOutPath := ExtractFileDir(schLib.DocumentName) + '\';
+    libPath := ExtractFileDir(schLib.DocumentName);
+    libOutPath := libPath + '\';
     logList := TStringList.Create();
 
     if libName = '' then
@@ -1011,7 +1019,8 @@ begin
     end;
 
     log('Converted');
-    logList.SaveToFile(libOutPath + fixFileName(libName) + '.txt');
+    logPath := libPath + '\' + fixFileName(libName) + '.txt';
+    logList.SaveToFile(logPath);
     logList.Free();
 
     if SHOW_LOG then
