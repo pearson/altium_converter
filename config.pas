@@ -93,8 +93,8 @@ begin
         //eMechanical10:       result := '';
         //eMechanical11:       result := '';
         //eMechanical12:       result := '';
-        eMechanical13:       result := 'Dwgs.User';
-        eMechanical14:       result := 'Dwgs.User';
+        eMechanical13:       result := 'F.Fab';
+        eMechanical14:       result := 'F.Fab';
         eMechanical15:       result := 'F.CrtYd';
         eMechanical16:       result :='Cmts.User';
         // ...mechanical layer numbering continues up to 32
