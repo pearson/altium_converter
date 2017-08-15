@@ -27,6 +27,7 @@ uses StrUtils;
 var
   // converted footprint name, used for logging
   footprint : String;
+  footprintObj : IPCB_LibComponent;
 
   // current output file
   outFile   : TextFile;
@@ -392,6 +393,52 @@ begin
 end;
 
 
+procedure processVia(aVia : IPCB_Via);
+var
+    pad, candidate : IPCB_Pad;
+    padIterator : IPCB_GroupIterator;
+begin
+    // stand-alone vias are not supported, but vias inside pads can be
+    // emulated by additional through hole pads, and this is the most frequent
+    // use case
+
+    if aVia.Mode <> ePadMode_Simple then
+        throw(footprint + ': ERROR: no support for complex stack vias');
+
+    // iterate through all pads to be sure via is placed inside (or intersects)
+    // only a single pad
+    padIterator := footprintObj.GroupIterator_Create();
+    padIterator.AddFilter_ObjectSet(MkSet(ePadObject));
+
+    pad := padIterator.FirstPCBObject;
+    candidate := nil;
+
+    while pad <> nil do
+    begin
+        if intersects(pad.BoundingRectangle, aVia.BoundingRectangle) then
+        begin
+            if candidate = nil then
+                candidate := pad
+            else if candidate.Name <> pad.Name then
+                throw(footprint + ': ERROR: no support for vias connecting pads with different names');
+        end;
+
+        pad := padIterator.NextPCBObject();
+    end;
+
+    footprintObj.GroupIterator_Destroy(padIterator);
+
+    if candidate = nil then
+        throw(footprint + ': ERROR: no support for standalone vias');
+
+    // convert via to a through-hole pad
+    WriteLn(outFile, '(pad ' + Copy(candidate.Name, 1, 4)
+        + ' thru_hole circle (at ' + pcbXYToStr(aVia.X, aVia.Y) + ') '
+        + '(size ' + XYToStr(aVia.Size, aVia.Size) + ') '
+        + '(drill ' + sizeToStr(aVia.HoleSize) + ') '
+        + '(layers *.Cu *.Mask))');
+end;
+
 
 procedure processTrack(aTrack : IPCB_Track);
 begin
@@ -512,7 +559,7 @@ begin
         eNoObject:              throw(footprint + ': ERROR: contains an invalid object (eNoObject)');
         eArcObject:             processArc(aObject);
         ePadObject:             processPad(aObject);
-        eViaObject:             throw(footprint + ': ERROR: vias are not supported');
+        eViaObject:             processVia(aObject);
         eTrackObject:           processTrack(aObject);
         eTextObject:            processText(aObject);
         eFillObject:            {processFill(aObject);} throw(footprint + ': ERROR: fills are not supported');
@@ -632,7 +679,6 @@ end;
 
 procedure processLibrary(aShowMsg : Boolean);
 var
-  footprint     : IPCB_LibComponent;
   pcbLib        : IPCB_Library;
   fpIterator    : IPCB_LibraryIterator;
   compReader    : ILibCompInfoReader;
@@ -693,16 +739,16 @@ begin
     {fpIterator.AddFilter_ObjectSet(MkSet(ePCBComponent));}
     ProgressInit('Converting library ' + pcbLib.Board.FileName, compNumber);
 
-    footprint := fpIterator.FirstPCBObject;
+    footprintObj := fpIterator.FirstPCBObject;
 
-    while footprint <> nil do
+    while footprintObj <> nil do
     begin
         // Create file for the converted footprint
         try
-            fileOutPath := libOutPath + fixFileName(footprint.Name) + '.kicad_mod';
+            fileOutPath := libOutPath + fixFileName(footprintObj.Name) + '.kicad_mod';
             AssignFile(outFile, fileOutPath);
             Rewrite(outFile);
-            valid := processFootprint(footprint);
+            valid := processFootprint(footprintObj);
         finally
             CloseFile(outFile);
         end;
@@ -712,7 +758,7 @@ begin
             DeleteFile(fileOutPath);
 
         ProgressUpdate(1);
-        footprint := fpIterator.NextPCBObject;
+        footprintObj := fpIterator.NextPCBObject;
     end;
 
     pcbLib.LibraryIterator_Destroy(fpIterator);

@@ -288,4 +288,10 @@ begin
     result := ifElse(aValue <> '', aValue, aDefaultValue);
 end;
 
+
+function intersects(a : TCoordRect, b : TCoordRect) : Boolean;
+begin
+    result := (a.x1 < b.x2) and (a.x2 > b.x1) and (a.y1 < b.y2) and (a.y2 > b.y1);
+end;
+
 end.
