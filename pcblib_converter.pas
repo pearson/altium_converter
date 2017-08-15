@@ -355,10 +355,6 @@ begin
     end
     else
     begin
-        // TODO could be easily handled for slot holes and angles 90, 180, 270
-        if (aPad.HoleRotation <> 0) and (aPad.HoleType <> eRoundHole) then
-            throw(footprint + ': ERROR: rotated holes are not supported');
-
         Write(outFile, '(drill ');
 
         case aPad.HoleType of
@@ -369,7 +365,12 @@ begin
                 throw(footprint + ': ERROR: square holes are not supported');
 
             eSlotHole:
-                Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize));
+                if((aPad.HoleRotation = 0) or (aPad.HoleRotation = 180)) then
+                    Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize))
+                else if ((aPad.HoleRotation = 90) or (aPad.HoleRotation = 270)) then
+                    Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize) + ' ' + sizeToStr(aPad.HoleWidth))
+                else
+                    throw(footprint + ': ERROR: rotated holes are not supported');
         end;
 
         // drill offset
