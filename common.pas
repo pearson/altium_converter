@@ -276,9 +276,9 @@ const
 begin
     result := aName;
 
-    for i := 0 to Length(forbiddenChars) - 1 do
+    for i := 1 to Length(forbiddenChars) do
     begin
-        result := StringReplace(result, forbiddenChars[i], '', -1);
+        result := StringReplace(result, forbiddenChars[i], '_', -1);
     end;
 end;
 
