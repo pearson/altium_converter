@@ -623,8 +623,8 @@ begin
     model := find3DModel(footprint);
 
     if model <> '' then
-        WriteLn(outFile, '(model "' + escapeQuotes(model) + '")');
-        // TODO at, scale, rotate
+        WriteLn(outFile, '(model "' + escapeQuotes(model) +
+                '" (at (xyz 0 0 0)) (scale (xyz 1 1 1)) (rotate (xyz 0 0 0)))');
 
     // INFO there are thermal relief settings, but they does not seem valid in
     // libraries (only on a board with design rules set)
