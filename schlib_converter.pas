@@ -1140,7 +1140,10 @@ begin
         begin
             ReadLn(listFile, buf);
 
-            if buf[0] = '#' then  // comments
+            if (VarType(buf) and VarTypeMask = varNull) then
+                break;
+
+            if (Length(buf) = 0) or (buf[0] = '#') then  // comments and empty lines
                 continue;
 
             if FileExists(buf) then
