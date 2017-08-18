@@ -304,7 +304,7 @@ begin
 
     if Length(aPad.Name) > 4 then
     begin
-        if TRUNCATE_PAD_NAMES then
+        if TRUNCATE_PIN_PAD_NAMES then
             log(footprint + ': pad name truncated from ' + aPad.Name
                 + ' to ' + Copy(aPad.Name, 1, 4))
         else

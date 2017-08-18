@@ -29,6 +29,7 @@ uses StrUtils;
 var
   // converted component name, used for logging
   component : String;
+  componentContents : TStringList;
   outFile   : TextFile;
   // flag to decide whether we convert a library or generate component templates
   template  : Boolean;
@@ -45,6 +46,13 @@ const
 // not possible in DelphiScript
 //type
 //  TDefParams = array[0..3] of TDynamicString;
+
+
+procedure throw(aMessage : TDynamicString);
+begin
+    log(aMessage);
+    raise; // no, you cannot create exception objects in DelphiScript..
+end;
 
 
 function escapeLabel(aText : TDynamicString) : TDynamicString;
@@ -328,34 +336,47 @@ procedure processPoly(aPoly : ISch_Polygon; aFilled : Boolean;
     aCloseLine : Boolean);
 var
     i, count : Integer;
+    buf : String;
 begin
     // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
     count := aPoly.VerticesCount;
     if aCloseLine then Inc(count);
 
-    Write(outFile, 'P ' + IntToStr(count) + ' ' + partMode(aPoly)
-            + ' ' + IntToStr(convertTSize(aPoly.LineWidth)));
+    buf := 'P ' + IntToStr(count) + ' ' + partMode(aPoly)
+            + ' ' + IntToStr(convertTSize(aPoly.LineWidth));
 
     for i := 1 to aPoly.VerticesCount do
-        Write(outFile, ' ' + locToStr(aPoly.Vertex[i]));
+        buf := buf + ' ' + locToStr(aPoly.Vertex[i]);
 
-    if aCloseLine then Write(outFile, ' ' + locToStr(aPoly.Vertex[1]));
+    if aCloseLine then buf := buf + ' ' + locToStr(aPoly.Vertex[1]);
 
-    WriteLn(outFile, ' ' + fillToStr(aFilled, aPoly.AreaColor));
+    componentContents.Append(buf + ' ' + fillToStr(aFilled, aPoly.AreaColor));
 end;
 
 
 procedure processPin(aPin : ISch_Pin);
 var
     pos         : TLocation;
-    pinShape    : TDynamicString;
+    shape, name : TDynamicString;
+    buf         : TString;
 begin
     // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
+    name := fixName(aPin.Name);
+
+    if Length(name) > 4 then
+    begin
+        if TRUNCATE_PIN_PAD_NAMES then
+            log(component + ': pin number truncated from ' + name
+                + ' to ' + Copy(name, 1, 4))
+        else
+            throw(component + ': ERROR: too long pin number: ' + name);
+    end;
+
     // Correct the pin position
     pos := aPin.Location;
-    pinShape := '';
+    shape := '';
 
     case aPin.Orientation of
         eRotate0:   pos.x := aPin.Location.x + aPin.PinLength;  // left
@@ -364,32 +385,32 @@ begin
         eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
-    Write(outFile, 'X ' + fixName(aPin.Name) + ' ' + fixName(aPin.Designator)
+    buf := 'X ' + fixName(Copy(name, 1, 4)) + ' ' + fixName(aPin.Designator)
             + ' ' + locToStr(pos) + ' ' + sizeToStr(aPin.PinLength)
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
             + ifElse(aPin.ShowName, ' 60 ', ' 0 ')          // TODO get correct size
-            + partMode(aPin));
+            + partMode(aPin);
 
     case aPin.Electrical of
-        eElectricInput:            Write(outFile, ' I');
-        eElectricIO:               Write(outFile, ' B');
-        eElectricOutput:           Write(outFile, ' O');
-        eElectricOpenCollector:    Write(outFile, ' C');
-        eElectricPassive:          Write(outFile, ' P');
-        eElectricHiZ:              Write(outFile, ' T');
-        eElectricOpenEmitter:      Write(outFile, ' E');
+        eElectricInput:            buf := buf + ' I';
+        eElectricIO:               buf := buf + ' B';
+        eElectricOutput:           buf := buf + ' O';
+        eElectricOpenCollector:    buf := buf + ' C';
+        eElectricPassive:          buf := buf + ' P';
+        eElectricHiZ:              buf := buf + ' T';
+        eElectricOpenEmitter:      buf := buf + ' E';
         // There is no power input/output distinction in Altium, so there
         // is simple heuristics trying to guess the type
         eElectricPower:
            if AnsiPos('out', Lowercase(aPin.Name)) > 0 then
-                Write(outFile, ' w')
+                buf := buf + ' w'
             else
-                Write(outFile, ' W');
+                buf := buf + ' W';
     end;
 
     // Pin shape
-    {if pinShape = '' then begin
+    {if shape = '' then begin
         case aPin.Symbol_Inner of
             ePostPonedOutput:
             eOpenCollector:
@@ -405,23 +426,23 @@ begin
         end;
     end;}
 
-    if pinShape = '' then
+    if shape = '' then
     begin
         case aPin.Symbol_InnerEdge of
-            eClock: pinShape := 'C';
+            eClock: shape := 'C';
         end;
     end;
 
-    if pinShape = '' then
+    if shape = '' then
     begin
         case aPin.Symbol_OuterEdge of
-            eDot:                 pinShape := 'I';
-            eActiveLowInput:      pinShape := 'L';
-            eActiveLowOutput:     pinShape := 'V';
+            eDot:                 shape := 'I';
+            eActiveLowInput:      shape := 'L';
+            eActiveLowOutput:     shape := 'V';
         end;
     end;
 
-    {if pinShape = '' then
+    {if shape = '' then
     begin
         case aPin.Symbol_Outer of
         //eRightLeftSignalFlow:
@@ -434,9 +455,9 @@ begin
     end;}
 
     if aPin.IsHidden then
-        pinShape := 'N' + pinShape;
+        shape := 'N' + shape;
 
-    WriteLn(outFile, ifElse(pinShape <> '', ' ' + pinShape, ''));
+    componentContents.Append(buf + ifElse(shape <> '', ' ' + shape, ''));
 end;
 
 
@@ -444,7 +465,7 @@ procedure processRectangle(aRect : ISch_Rectangle);
 begin
     // S startx starty endx endy unit convert thickness cc
 
-    WriteLn(outFile, 'S ' + locToStr(aRect.Location)
+    componentContents.Append('S ' + locToStr(aRect.Location)
             + ' ' + locToStr(aRect.Corner) + ' ' + partMode(aRect)
             + ' ' + IntToStr(convertTSize(aRect.LineWidth))
             + ' ' + fillObjToStr(aRect));
@@ -455,23 +476,25 @@ procedure processLine(aLine : ISch_Line);
 begin
     // P Nb parts convert thickness x0 y0 x1 y1 xi yi cc
 
-    WriteLn(outFile, 'P 2 ' + partMode(aLine)
+    componentContents.Append('P 2 ' + partMode(aLine)
             + ' ' + IntToStr(convertTSize(aLine.LineWidth))
             + ' ' + locToStr(aLine.Location) + ' ' + locToStr(aLine.Corner) + ' N');
 end;
 
 
 procedure processArc(aArc : ISch_Arc; aFilled : Boolean);
+var
+    buf : String;
 begin
     // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
 
-    Write(outFile, 'A ' + locToStr(aArc.Location) + ' ' + sizeToStr(aArc.Radius)
+    buf := 'A ' + locToStr(aArc.Location) + ' ' + sizeToStr(aArc.Radius)
             + ' ' + IntToStr(aArc.EndAngle * 10) + ' ' + IntToStr(aArc.StartAngle * 10)
-            + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth)));
+            + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth));
 
-    if aFilled then Write(outFile, ' f ') else Write(outFile, ' N ');
+    buf := buf + ifElse(aFilled, ' f ', ' N ');
 
-    WriteLn(outFile, locToStr(arcEndPt(aArc)) + ' ' + locToStr(arcStartPt(aArc)));
+    componentContents.Append(buf + locToStr(arcEndPt(aArc)) + ' ' + locToStr(arcStartPt(aArc)));
 end;
 
 
@@ -494,49 +517,49 @@ begin
         log(component + ': filled rounded rectangles are converted as stroked ones');
 
     // left edge
-    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+    componentContents.Append('P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
             + ' ' + sizeToStr(startX) + ' ' + sizeToStr(startY + radius)
             + ' ' + sizeToStr(startX) + ' ' + sizeToStr(endY - radius) + ' N');
 
     // bottom edge
-    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+    componentContents.Append('P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
             + ' ' + sizeToStr(startX + radius) + ' ' + sizeToStr(endY)
             + ' ' + sizeToStr(endX - radius) + ' ' + sizeToStr(endY) + ' N');
 
     // right edge
-    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+    componentContents.Append('P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
             + ' ' + sizeToStr(endX) + ' ' + sizeToStr(startY + radius)
             + ' ' + sizeToStr(endX) + ' ' + sizeToStr(endY - radius) + ' N');
 
     // top edge
-    WriteLn(outFile, 'P 2 ' + partMode(aRoundRect)
+    componentContents.Append('P 2 ' + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth))
             + ' ' + sizeToStr(startX + radius) + ' ' + sizeToStr(startY)
             + ' ' + sizeToStr(endX - radius) + ' ' + sizeToStr(startY) + ' N');
 
     // top left corner
-    WriteLn(outFile, 'A ' + sizeToStr(startX + radius) + ' ' + sizeToStr(endY - radius)
+    componentContents.Append('A ' + sizeToStr(startX + radius) + ' ' + sizeToStr(endY - radius)
             + ' ' + sizeToStr(radius) + ' 900 1800 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom left corner
-    WriteLn(outFile, 'A ' + sizeToStr(startX + radius) + ' ' + sizeToStr(startY + radius)
+    componentContents.Append('A ' + sizeToStr(startX + radius) + ' ' + sizeToStr(startY + radius)
             + ' ' + sizeToStr(radius) + ' -900 1800 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // top right corner
-    WriteLn(outFile, 'A ' + sizeToStr(endX - radius) + ' ' + sizeToStr(endY - radius)
+    componentContents.Append('A ' + sizeToStr(endX - radius) + ' ' + sizeToStr(endY - radius)
             + ' ' + sizeToStr(radius) + ' 900 0 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
 
     // bottom right corner
-    WriteLn(outFile, 'A ' + sizeToStr(endX - radius) + ' ' + sizeToStr(startY + radius)
+    componentContents.Append('A ' + sizeToStr(endX - radius) + ' ' + sizeToStr(startY + radius)
             + ' ' + sizeToStr(radius) + ' -900 0 '
             + partMode(aRoundRect)
             + ' ' + IntToStr(convertTSize(aRoundRect.LineWidth)));
@@ -546,17 +569,18 @@ end;
 procedure processBezier(aBezier : ISch_Bezier);
 var
     i, count : Integer;
+    buf : String;
 begin
     // B count part dmg pen X Y ... fill
 
-    Write(outFile, 'B ' + IntToStr(aBezier.VerticesCount)
+    buf := 'B ' + IntToStr(aBezier.VerticesCount)
             + ' ' + partMode(aBezier)
-            + ' ' + IntToStr(convertTSize(aBezier.LineWidth)));
+            + ' ' + IntToStr(convertTSize(aBezier.LineWidth));
 
     for i := 1 to aBezier.VerticesCount do
-        Write(outFile, ' ' + locToStr(aBezier.Vertex[i]));
+        buf := buf + ' ' + locToStr(aBezier.Vertex[i]);
 
-    WriteLn(outFile, ' N');
+    componentContents.Append(buf + ' N');
 end;
 
 
@@ -564,7 +588,7 @@ procedure processLabel(aLabel : ISch_Label);
 begin
     // T angle X Y size hidden part dmg text italic bold Halign Valign
 
-    WriteLn(outFile, 'T ' + IntToStr(rotToInt90(aLabel.Orientation))
+    componentContents.Append('T ' + IntToStr(rotToInt90(aLabel.Orientation))
             + ' ' + locToStr(aLabel.Location)
             + ' ' + IntToStr(fontSize(aLabel.FontID))
             + ' 1 ' + partMode(aLabel)
@@ -586,7 +610,7 @@ begin
     // KiCad does not have pies, instead draw an arc and a polyline
     processArc(aPie, aPie.IsSolid());
 
-    WriteLn(outFile, 'P 3 ' + partMode(aPie)
+    componentContents.Append('P 3 ' + partMode(aPie)
             + ' ' + IntToStr(convertTSize(aPie.LineWidth))
             + ' ' + locToStr(startPt)
             + ' ' + locToStr(aPie.Location)
@@ -600,6 +624,7 @@ var
    ctrlPts : array[0..3] of TLocation;
    loc : TLocation;
    rad1, rad2, i : Integer;
+   buf : String;
 begin
     loc := aEllipse.Location;
     rad1 := aEllipse.Radius;
@@ -610,7 +635,7 @@ begin
     begin
         // circle
         // C posx posy radius unit convert thickness cc
-        WriteLn(outFile, 'C ' + locToStr(loc)
+        componentContents.Append('C ' + locToStr(loc)
                 + ' ' + sizeToStr(rad1)
                 + ' ' + partMode(aEllipse)
                 + ' ' + IntToStr(convertTSize(aEllipse.LineWidth))
@@ -632,24 +657,24 @@ begin
         ctrlPts[3].x := loc.x + rad1;
         ctrlPts[3].y := loc.y;
 
-        Write(outFile, 'B 4 ' + partMode(aEllipse)
-            + ' ' + IntToStr(convertTSize(aEllipse.LineWidth)));
+        buf := 'B 4 ' + partMode(aEllipse)
+            + ' ' + IntToStr(convertTSize(aEllipse.LineWidth));
 
         for i := 0 to 3 do
-            Write(outFile, ' ' + locToStr(ctrlPts[i]));
+            buf := buf + ' ' + locToStr(ctrlPts[i]);
 
-        WriteLn(outFile, ' ' + fillObjToStr(aEllipse));
+        componentContents.Append(' ' + fillObjToStr(aEllipse));
 
         ctrlPts[1].y := loc.y - rad2 * 4 / 3;
         ctrlPts[2].y := loc.y - rad2 * 4 / 3;
 
-        Write(outFile, 'B 4 ' + partMode(aEllipse)
-            + ' ' + IntToStr(convertTSize(aEllipse.LineWidth)));
+        buf := buf + 'B 4 ' + partMode(aEllipse)
+            + ' ' + IntToStr(convertTSize(aEllipse.LineWidth));
 
         for i := 0 to 3 do
-            Write(outFile, ' ' + locToStr(ctrlPts[i]));
+            buf := buf + ' ' + locToStr(ctrlPts[i]);
 
-        WriteLn(outFile, ' ' + fillObjToStr(aEllipse));
+        componentContents.Append(buf + ' ' + fillObjToStr(aEllipse));
     end;
 end;
 
@@ -663,6 +688,7 @@ var
 
     ctrlPts : array[0..3] of TLocation;     // Bezier curve control points
     eta1, eta2, tanEtaDiff, alpha : Double;
+    buf : String;
 const
     // Number of Bezier curves used for approximation
     BEZ_SEGMENTS = 2;
@@ -701,7 +727,7 @@ begin
             lambda1 := lambda1 + angleStep;
         end;
 
-        WriteLn(outFile, ' N');}
+        componentContents.Append(' N');}
 
 
         // Bezier curves approximation
@@ -734,13 +760,13 @@ begin
             ctrlPts[2].x := Round(ctrlPts[3].x + alpha * a * Sin(eta2));
             ctrlPts[2].y := Round(ctrlPts[3].y - alpha * b * Cos(eta2));
 
-            Write(outFile, 'B 4 ' + partMode(aEllipArc)
-                + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth)));
+            buf := 'B 4 ' + partMode(aEllipArc)
+                + ' ' + IntToStr(convertTSize(aEllipArc.LineWidth));
 
             for i := 0 to 3 do
-                Write(outFile, ' ' + locToStr(ctrlPts[i]));
+                buf := buf + ' ' + locToStr(ctrlPts[i]);
 
-            WriteLn(outFile, ' N');
+            componentContents.Append(buf + ' N');
 
             lambda1 := lambda2;
             lambda2 := lambda2 + angleStep;
@@ -800,18 +826,21 @@ var
     schObj                      : ISch_GraphicalObject;
     i, idx                      : Integer;
     name, designator, buf       : TDynamicString;
+    valid                       : Boolean;
 
 begin
     component := aComponent.LibReference;
     modeCount := aComponent.DisplayModeCount;
     partCount := aComponent.PartCount;
+    componentContents := TStringList.Create();
+    valid := true;
 
     if modeCount > 2 then
         log(component + ': more than 2 modes (graphical representations) are not supported');
 
-    WriteLn(outFile, '#');
-    WriteLn(outFile, '# ' + component);
-    WriteLn(outFile, '#');
+    componentContents.Append('#');
+    componentContents.Append('# ' + component);
+    componentContents.Append('#');
 
     if template then
         name := '${Part Number}'
@@ -822,19 +851,19 @@ begin
     designator := fixName(StringReplace(aComponent.Designator.Text, '?', '', -1));
 
     // name reference unused text_offset draw_pin_number draw_pin_name unit_count units_swappable Normal/Power
-    WriteLn(outFile, 'DEF ' + name + ' ' + designator + ' 0 '
+    componentContents.Append('DEF ' + name + ' ' + designator + ' 0 '
         + IntToStr(SCH_PARAM_TEXT_SIZE) + ' Y Y ' + IntToStr(aComponent.PartCount) + ' L N');
 
 
     // Aliases
     if aComponent.AliasCount > 1 then
     begin
-        Write(outFile, 'ALIAS');
+        buf := 'ALIAS';
 
         for i:= 0 to aComponent.AliasCount() do
-            Write(outFile, ' ' + fixName(aComponent.AliasAsText(i)));
+            buf := buf + ' ' + fixName(aComponent.AliasAsText(i));
 
-        WriteLn(outFile, '');
+        componentContents.Append(buf);
     end;
 
 
@@ -862,19 +891,24 @@ begin
     paramIterator.AddFilter_ObjectSet(MkSet(eParameter));
 
     try
-        param := paramIterator.FirstSchObject;
+        try
+            param := paramIterator.FirstSchObject;
 
-        while param <> nil do
-        begin
-            idx := DEF_PARAMS_NUMBER + customParams.Count;
-            buf := processParameter(param, aComponent, idx);
+            while param <> nil do
+            begin
+                idx := DEF_PARAMS_NUMBER + customParams.Count;
+                buf := processParameter(param, aComponent, idx);
 
-            if idx < DEF_PARAMS_NUMBER then
-               defParams[idx] := buf
-            else
-                customParams.Append(buf);
+                if idx < DEF_PARAMS_NUMBER then
+                   defParams[idx] := buf
+                else
+                   customParams.Append(buf);
 
-            param := paramIterator.NextSchObject();
+                param := paramIterator.NextSchObject();
+            end;
+
+        except
+            valid := false;
         end;
 
     finally
@@ -882,33 +916,45 @@ begin
     end;
 
     for i := 0 to 3 do
-        WriteLn(outFile, defParams[i]);
+        componentContents.Append(defParams[i]);
 
     for i := 0 to customParams.Count() - 1 do
-        WriteLn(outFile, customParams[i]);
+        componentContents.Append(customParams[i]);
 
     customParams.Free();
 
     // Convert the graphic symbol
-    WriteLn(outFile, 'DRAW');
+    componentContents.Append('DRAW');
     objIterator := aComponent.SchIterator_Create();
 
     try
-        schObj := objIterator.FirstSchObject;
+        try
+            schObj := objIterator.FirstSchObject;
 
-        while schObj <> nil do
-        begin
-            processObject(schObj);
-            schObj := objIterator.NextSchObject();
+            while schObj <> nil do
+            begin
+                processObject(schObj);
+                schObj := objIterator.NextSchObject();
+            end;
+        except
+            valid := false;
         end;
 
     finally
         aComponent.SchIterator_Destroy(objIterator);
     end;
 
+    if valid then
+    begin
+        componentContents.Append('ENDDRAW');
+        componentContents.Append('ENDDEF');
 
-    WriteLn(outFile, 'ENDDRAW');
-    WriteLn(outFile, 'ENDDEF');
+        for i := 0 to componentContents.Count() - 1 do
+            WriteLn(outFile, componentContents[i]);
+
+        componentContents.Free();
+    end;
+    
     component := '';
 end;
 
