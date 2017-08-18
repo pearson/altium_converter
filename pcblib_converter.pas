@@ -666,7 +666,8 @@ begin
         WriteLn(outFile, ')');
 
         WriteLn(outFile, '(fp_text value "' + escapeQuotes(footprint) + '" (at '
-             + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)');
+             + pcbXYToStr(fpX, bbox.bottom - textSizeAltium) + ') (layer F.Fab)'
+             + ifElse(HIDE_NAME, ' hide', ''));
         WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
         WriteLn(outFile, ')');
 

@@ -70,6 +70,9 @@ const
   // there are no collisions with other objects.
   CONVERT_TTF = false;
 
+  // Should the footprint name (value) be hidden by default during conversion
+  HIDE_NAME = true;
+
 
 // defines layer mapping used for footprint conversion
 function layerMapping(aLayer : TLayer) : TPCB_String;
