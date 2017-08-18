@@ -32,9 +32,31 @@ var
   precision : Integer;
 
 
+function fixFileName(aName : TDynamicString) : TDynamicString;
+var
+    i : Integer;
+const
+    forbiddenChars = '<>:"\\/|?*';
+begin
+    result := aName;
+
+    for i := 1 to Length(forbiddenChars) do
+    begin
+        result := StringReplace(result, forbiddenChars[i], '_', -1);
+    end;
+end;
+
+
 procedure log(aMessage : TDynamicString);
 begin
     logList.Append(DateToStr(Date) + ' ' + timeToStr(Time) + ': ' + aMessage);
+end;
+
+
+function getLogPath(aLibraryFileName : TDynamicString) : TDynamicString;
+begin
+    result := ExtractFileDir(aLibraryFileName) + '\' +
+           fixFileName(ChangeFileExt(ExtractFileName(aLibraryFileName), '.txt'));
 end;
 
 
@@ -265,21 +287,6 @@ end;
 function escapeQuotes(aString : TDynamicString) : TDynamicString;
 begin
     result := StringReplace(aString, '"', '\"', -1);
-end;
-
-
-function fixFileName(aName : TDynamicString) : TDynamicString;
-var
-    i : Integer;
-const
-    forbiddenChars = '<>:"\\/|?*';
-begin
-    result := aName;
-
-    for i := 1 to Length(forbiddenChars) do
-    begin
-        result := StringReplace(result, forbiddenChars[i], '_', -1);
-    end;
 end;
 
 

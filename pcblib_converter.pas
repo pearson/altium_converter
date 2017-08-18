@@ -768,8 +768,6 @@ begin
 
     pcbLib.LibraryIterator_Destroy(fpIterator);
 
-    log('Converted');
-
     if compCounter = 0 then
     begin
         log('NO FOOTPRINTS CONVERTED: removed the empty directory');
@@ -778,7 +776,8 @@ begin
             RemoveDir(libOutPath);
     end;
 
-    logPath := libPath + '\' + fixFileName(libName) + '.txt';
+    log('Converted');
+    logPath := getLogPath(pcbLib.Board.FileName);
     logList.SaveToFile(logPath);
     logList.Free();
 
@@ -910,6 +909,10 @@ begin
 
             if (Length(buf) = 0) or (buf[0] = '#') then  // comments and empty lines
                 continue;
+
+            // TODO does not work :(
+            //if (PROCESS_ONLY_MODIFIED and FileAge(getLogPath(buf)) > FileAge(buf)) then
+            //    continue;
 
             if FileExists(buf) then
                 doc := Client.OpenDocument('PcbLib', buf)

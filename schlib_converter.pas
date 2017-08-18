@@ -1019,7 +1019,7 @@ begin
     end;
 
     log('Converted');
-    logPath := libPath + '\' + fixFileName(libName) + '.txt';
+    logPath := getLogPath(schLib.DocumentName);
     logList.SaveToFile(logPath);
     logList.Free();
 
@@ -1145,6 +1145,10 @@ begin
 
             if (Length(buf) = 0) or (buf[0] = '#') then  // comments and empty lines
                 continue;
+
+            // TODO does not work :(
+            //if (PROCESS_ONLY_MODIFIED and FileAge(getLogPath(buf)) > FileAge(buf)) then
+            //    continue;
 
             if FileExists(buf) then
                 doc := Client.OpenDocument('SchLib', buf)
