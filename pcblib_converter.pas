@@ -684,6 +684,7 @@ var
   fpIterator    : IPCB_LibraryIterator;
   compReader    : ILibCompInfoReader;
   compNumber    : Integer;
+  compCounter   : Integer;
 
   libName       : TDynamicString;
   libPath       : TString;
@@ -740,6 +741,7 @@ begin
     {fpIterator.AddFilter_ObjectSet(MkSet(ePCBComponent));}
     ProgressInit('Converting library ' + pcbLib.Board.FileName, compNumber);
 
+    compCounter := 0;
     footprintObj := fpIterator.FirstPCBObject;
 
     while footprintObj <> nil do
@@ -756,7 +758,9 @@ begin
 
         // Do not save invalid footprints
         if not valid then
-            DeleteFile(fileOutPath);
+            DeleteFile(fileOutPath)
+        else
+            Inc(compCounter);
 
         ProgressUpdate(1);
         footprintObj := fpIterator.NextPCBObject;
@@ -765,6 +769,15 @@ begin
     pcbLib.LibraryIterator_Destroy(fpIterator);
 
     log('Converted');
+
+    if compCounter = 0 then
+    begin
+        log('NO FOOTPRINTS CONVERTED: removed the empty directory');
+
+        if DirectoryExists(libOutPath) then
+            RemoveDir(libOutPath);
+    end;
+
     logPath := libPath + '\' + fixFileName(libName) + '.txt';
     logList.SaveToFile(logPath);
     logList.Free();
