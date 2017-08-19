@@ -358,20 +358,20 @@ end;
 procedure processPin(aPin : ISch_Pin);
 var
     pos         : TLocation;
-    shape, name : TDynamicString;
+    shape, number : TDynamicString;
     buf         : TString;
 begin
     // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
-    name := fixName(aPin.Name);
+    number := fixName(aPin.Designator);
 
-    if Length(name) > 4 then
+    if Length(number) > 4 then
     begin
         if TRUNCATE_PIN_PAD_NAMES then
-            log(component + ': pin number truncated from ' + name
-                + ' to ' + Copy(name, 1, 4))
+            log(component + ': pin number truncated from ' + number
+                + ' to ' + Copy(number, 1, 4))
         else
-            throw(component + ': ERROR: too long pin number: ' + name);
+            throw(component + ': ERROR: too long pin number: ' + number);
     end;
 
     // Correct the pin position
@@ -385,7 +385,7 @@ begin
         eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
-    buf := 'X ' + fixName(Copy(name, 1, 4)) + ' ' + fixName(aPin.Designator)
+    buf := 'X ' + fixName(aPin.Name) + ' ' + Copy(number, 1, 4)
             + ' ' + locToStr(pos) + ' ' + sizeToStr(aPin.PinLength)
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
