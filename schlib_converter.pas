@@ -663,12 +663,12 @@ begin
         for i := 0 to 3 do
             buf := buf + ' ' + locToStr(ctrlPts[i]);
 
-        componentContents.Append(' ' + fillObjToStr(aEllipse));
+        componentContents.Append(buf + ' ' + fillObjToStr(aEllipse));
 
         ctrlPts[1].y := loc.y - rad2 * 4 / 3;
         ctrlPts[2].y := loc.y - rad2 * 4 / 3;
 
-        buf := buf + 'B 4 ' + partMode(aEllipse)
+        buf := 'B 4 ' + partMode(aEllipse)
             + ' ' + IntToStr(convertTSize(aEllipse.LineWidth));
 
         for i := 0 to 3 do
