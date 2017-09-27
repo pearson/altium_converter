@@ -38,6 +38,8 @@ var
   modeCount : Integer;
   partCount : Integer;
   fontMgr   : ISch_FontManager;
+  // TODO crappy workaround for duplicated Value field
+  valueDone : Boolean;
 
 const
   // number of default fields in KiCad components
@@ -311,8 +313,19 @@ begin
             name := Copy(value, 2, Length(value) - 1);
             value := '${' + name + '}';
 
-            if name = 'Value'
-                then name := 'Val';     // 'Value' is a reserved field name
+            if name = 'Value' then
+            begin
+                // 'Value' is a reserved field name
+                name := 'Val';
+
+                if not valueDone then
+                begin
+                    valueDone := true;
+                end else begin
+                    result := '';
+                    Exit;
+                end;
+            end;
         end
 
         // Other parameters apart from the Designator field
@@ -868,6 +881,7 @@ begin
 
 
     // Fields (parameters in Altium)
+    valueDone := false;
     customParams := TStringList.Create();
 
     // Default fields
@@ -901,7 +915,7 @@ begin
 
                 if idx < DEF_PARAMS_NUMBER then
                    defParams[idx] := buf
-                else
+                else if buf <> '' then
                    customParams.Append(buf);
 
                 param := paramIterator.NextSchObject();
