@@ -290,7 +290,7 @@ begin
     end
 
     else if name = 'Footprint' then
-        aParamIdx := 2       // TODO use ISch_Implementation to figure out the footprint?
+        aParamIdx := 2
 
     else if name = 'HelpURL' then
         aParamIdx := 3;
@@ -325,10 +325,10 @@ begin
         value := StringReplace(value, '"', '\"', -1);
     end;
 
-    if aParameter.IsHidden then
+    if aParamIdx <= 3 then
         result := autoParamToStr(aComponent, aParamIdx, value)
     else
-        result := paramToStr(aParameter, aParamIdx, value, '');
+        result := paramToStr(aParameter, aParamIdx, value, name);
 end;
 
 
