@@ -43,6 +43,10 @@ var
   reliefWidth : Integer;
   reliefStyle : Integer;
 
+  // pad counters to determine whether a component is SMD or THT (heuristics)
+  smdPadCount : Integer;
+  thtPadCount : Integer;
+
 
 procedure throw(aMessage : TDynamicString);
 begin
@@ -347,6 +351,8 @@ begin
 
     if aPad.IsSurfaceMount then
     begin
+        Inc(smdPadCount);
+
         case aPad.Layer of
             eTopLayer:    Write(outFile, '(layers F.Cu F.Paste F.Mask)');
             eBottomLayer: Write(outFile, '(layers B.Cu B.Paste B.Mask)');
@@ -356,6 +362,8 @@ begin
     end
     else
     begin
+        Inc(thtPadCount);
+
         Write(outFile, '(drill ');
 
         case aPad.HoleType of
@@ -592,6 +600,8 @@ begin
     footprint := aFootprint.Name;
     fpX := aFootprint.X;
     fpY := aFootprint.Y;
+    smdPadCount := 0;
+    thtPadCount := 0;
     result := true;     // assume it is ok
 
     // footprint bbox computed while processing children items
@@ -604,7 +614,6 @@ begin
     WriteLn(outFile, '(descr "' + escapeQuotes(aFootprint.Description) + '")');
 
     // TODO smd/virtual attributes, tags
-    //WriteLn(outFile, '(attr smd)');
     //WriteLn(outFile, '(tags xxx)');
 
     // TODO is it ever set?
@@ -659,6 +668,10 @@ begin
 
     if result = true then
     begin
+        // SMD attribute
+        if smdPadCount > thtPadCount then
+            WriteLn(outFile, '(attr smd)');
+
         // reference and value
         WriteLn(outFile, '(fp_text reference REF** (at '
              + pcbXYToStr(fpX, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
