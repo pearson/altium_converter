@@ -338,7 +338,7 @@ begin
         value := StringReplace(value, '"', '\"', -1);
     end;
 
-    if aParamIdx <= 3 then
+    if (aParamIdx > 0) and (aParamIdx <= 3) then
         result := autoParamToStr(aComponent, aParamIdx, value)
     else
         result := paramToStr(aParameter, aParamIdx, value, name);
