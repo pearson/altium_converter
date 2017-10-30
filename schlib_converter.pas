@@ -305,7 +305,7 @@ begin
 
         // Footprint
         else if aParamIdx = 2 then
-            value := '${Library Name}:${Footprint Ref}'
+            value := '${Footprint Library}:${Footprint Ref}'
 
         // Field evaluation
         else if value[1] = '=' then
@@ -890,7 +890,7 @@ begin
 
     if template then
     begin
-        defParams[2] := autoParamToStr(aComponent, 2, '${Library Name}:${Footprint Ref}');
+        defParams[2] := autoParamToStr(aComponent, 2, '${Footprint Library}:${Footprint Ref}');
         defParams[3] := autoParamToStr(aComponent, 3, '${HelpURL}');
     end
     else
