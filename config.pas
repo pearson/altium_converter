@@ -34,7 +34,7 @@ const
 
 const
   // default parameter text height
-  SCH_PARAM_TEXT_SIZE = 60;
+  SCH_PARAM_TEXT_SIZE = 50;
 
 
 // FOOTPRINT CONVERTER
