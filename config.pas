@@ -61,10 +61,6 @@ const
   // abort when one of unmapped layers is used
   ABORT_ON_UNKNOWN_LAYER = true;
 
-  // KiCad pin numbers/pad names are limited to 4 characters, should truncated
-  // names be allowed?
-  TRUNCATE_PIN_PAD_NAMES = false;
-
   // Should truetype fonts be converted? WARNING: Using stroked font instead of
   // truetype will five *very* different results. You need to verify if
   // there are no collisions with other objects.

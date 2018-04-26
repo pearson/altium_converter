@@ -306,15 +306,6 @@ begin
             throw(footprint + ': ERROR: only simple pads are supported: ' + aPad.Name);
     end;
 
-    if Length(aPad.Name) > 4 then
-    begin
-        if TRUNCATE_PIN_PAD_NAMES then
-            log(footprint + ': pad name truncated from ' + aPad.Name
-                + ' to ' + Copy(aPad.Name, 1, 4))
-        else
-            throw(footprint + ': ERROR: too long pad name: ' + aPad.Name);
-    end;
-
     if (aPad.HoleSize > aPad.TopXSize) or (aPad.HoleSize > aPad.TopYSize) then
     begin
         // TODO we could handle cases when paste margin & solder margin are

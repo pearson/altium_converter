@@ -378,15 +378,6 @@ begin
 
     number := fixName(aPin.Designator);
 
-    if Length(number) > 4 then
-    begin
-        if TRUNCATE_PIN_PAD_NAMES then
-            log(component + ': pin number truncated from ' + number
-                + ' to ' + Copy(number, 1, 4))
-        else
-            throw(component + ': ERROR: too long pin number: ' + number);
-    end;
-
     // Correct the pin position
     pos := aPin.Location;
     shape := '';
