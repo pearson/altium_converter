@@ -1,3 +1,5 @@
+Set of scripts to convert Altium schematic and footprint libraries to KiCad format. Tested with Altium 14.3.
+
 TODO:
 - 3D model association (footprints)
 
