@@ -511,15 +511,6 @@ begin
 
     rotation := aText.Rotation;
 
-    if rotation >= 270 then
-        Dec(rotation, 360);
-
-    if rotation <= -270 then
-        Inc(rotation, 360);
-
-    if (rotation > 90) or (rotation < -90) then
-        throw(footprint + ': ERROR: text rotation has to be in range [-90,90]: ' + aText.Text);
-
     // Altium uses left bottom corner as a reference,
     // while in KiCad it is the text centre
     pos := TLocation;
