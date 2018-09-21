@@ -26,14 +26,15 @@
  //////////
 
 const
-  // show conversion log when finished
+  // Show conversion log when finished
   SHOW_LOG = true;
+
 
 // SCHEMATIC SYMBOL CONVERTER
 /////////////////////////////
 
 const
-  // default parameter text height
+  // Default parameter text height
   SCH_PARAM_TEXT_SIZE = 50;
 
 
@@ -41,28 +42,27 @@ const
 //////////////////////
 
 const
-  // should the silkscreen texts be stroked (slows down the conversion,
-  // makes texts ineditable, but they are exactly converted)
-  //STROKE_SILK_TEXT = true;
-
   // 3D model path, if there is a file with the name matching the footprint,
   // the model will be assigned to the converted footprint
   MODEL_PATH = 'G:\Applications\Altium\CernLib\StepLib';
 
-  // whether to use full path to the model or just the model name
-  // (requires setting a variable in pcbnew, but then it is portable)
+  // Whether to use full path to the model or only the model file name
+  // (using only the file name requires setting KISYS3DMOD variable in pcbnew,
+  // but then the footprint library is portable)
   USE_FULL_MODEL_PATH = false;
 
 
 // Compatibility settings
-  // approximate octagonal pads with rounded rectangles
+  // Approximate octagonal pads with rounded rectangles
   OCTAGON_TO_ROUNDRECT = false;
 
-  // abort when one of unmapped layers is used
+  // Abort when one of unmapped layers is used
   ABORT_ON_UNKNOWN_LAYER = true;
 
-  // Should truetype fonts be converted? WARNING: Using stroked font instead of
-  // truetype will five *very* different results. You need to verify if
+  // Convert texts using TrueType fonts
+  // WARNING: There is no support for TrueType fonts in KiCad, therefore texts
+  // will be drawn using the default KiCad font and the result may
+  // significantly differ from what you see in Altium. You need to verify if
   // there are no collisions with other objects.
   CONVERT_TTF = false;
 
@@ -70,7 +70,7 @@ const
   HIDE_NAME = true;
 
 
-// defines layer mapping used for footprint conversion
+// Defines layer mapping used for footprint conversion
 function layerMapping(aLayer : TLayer) : TPCB_String;
 begin
     // KiCad mechanical layers names:
