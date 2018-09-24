@@ -308,26 +308,10 @@ begin
     end;
 
     padCache := aPad.GetState_Cache();
-
-    if (aPad.HoleSize > aPad.TopXSize) or (aPad.HoleSize > aPad.TopYSize) then
-    begin
-        // in Altium holes bigger than pads are allowed, in KiCad it is not possible
-        // resize pads to the hole size if they are smaller
-        width := Max(aPad.HoleSize, aPad.TopXSize);
-        height := Max(aPad.HoleSize, aPad.TopYSize);
-
-        // Altium computes solder and paste clearance basing on the pad size,
-        // but if the pad size is smaller than the hole - it has to be adjusted
-        pasteMargin := Max(0, padCache.PasteMaskExpansion - (aPad.HoleSize - aPad.TopXSize) div 2);
-        solderMargin := Max(0, padCache.SolderMaskExpansion - (aPad.HoleSize - aPad.TopXSize) div 2);
-    end
-    else
-    begin  // normal case (hole smaller than the pad size)
-        width := aPad.TopXSize;
-        height := aPad.TopYSize;
-        pasteMargin := padCache.PasteMaskExpansion;
-        solderMargin := padCache.SolderMaskExpansion;
-    end;
+    width := aPad.TopXSize;
+    height := aPad.TopYSize;
+    pasteMargin := padCache.PasteMaskExpansion;
+    solderMargin := padCache.SolderMaskExpansion;
 
     // pad name in KiCad is limited to 4 chars, spaces are allowed
     Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
@@ -361,6 +345,8 @@ begin
                 throw(footprint + ': ERROR: square holes are not supported');
 
             eSlotHole:
+                // KiCad does not supported rotated holes, but 90 and 270 degree
+                // rotation might be handled by swapping width and height
                 if((aPad.HoleRotation = 0) or (aPad.HoleRotation = 180)) then
                     Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize))
                 else if ((aPad.HoleRotation = 90) or (aPad.HoleRotation = 270)) then
