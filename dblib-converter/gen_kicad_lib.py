@@ -18,8 +18,9 @@ fieldTextSize = 50
 fieldTextInterline = 1.5
 # license text added in 'License' field
 licenseText = """This work is licensed under the Creative Commons CC-BY-SA 4.0 License. To the extent that circuit schematics that use Licensed Material can be considered to be ‘Adapted Material’, then the copyright holder waives article 3.b of the license with respect to these schematics."""
-# skips 'HelpURL' and 'Datasheet' fields, which point to network shares available only in the CERN Network
-skipDatasheet = True
+# filter fields containing addresses accessible only in the internal network
+filterURL = True
+
 
 class MultiwordTemplate(string.Template):
     idpattern = '[_a-zA-Z][_a-zA-Z0-9 ]*'
@@ -59,7 +60,8 @@ class SymbolTemplate:
                         if field in ('Reference', 'Value', 'Footprint', 'Datasheet'):
                             continue
 
-                        if field == 'HelpURL' and skipDatasheet:
+                        # skip fields containing internal URLs, if requested
+                        if filterURL and field in ('HelpURL', 'ComponentLink1URL', 'ComponentLink2URL', 'ComponentLink3URL'):
                             continue
 
                         fieldLine = 'F%d "${%s}" %d %d %d H I L CNN "%s"\r\n' \
@@ -180,7 +182,7 @@ with open(filename_in, 'r') as file_in:
         part['Footprint Library'] = fp_lib
         part['License'] = licenseText
 
-        if skipDatasheet:   # do not put datasheet links in cern.ch domain
+        if filterURL:
             part['HelpURL'] = ' '
 
         # pick the corresponding template
