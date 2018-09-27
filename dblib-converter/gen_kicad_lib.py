@@ -117,7 +117,7 @@ symbol_templates = {}
 
 # process files
 file_out = open(filename_out, 'w')
-file_out.write('EESchema-LIBRARY Version 2.3\r\n')
+file_out.write('EESchema-LIBRARY Version 2.4\r\n')
 file_out.write('#encoding utf-8\r\n')
 
 with open(filename_in, 'r') as file_in:
