@@ -11,8 +11,12 @@ import os
 import csv
 import string
 
+# Configuration
+# text size in symbols [mils]
 fieldTextSize = 50
+# vertical space between consecutive fields
 fieldTextInterline = 1.5
+# license text added in 'License' field
 licenseText = """This work is licensed under the Creative Commons CC-BY-SA 4.0 License. To the extent that circuit schematics that use Licensed Material can be considered to be ‘Adapted Material’, then the copyright holder waives article 3.b of the license with respect to these schematics."""
 # skips 'HelpURL' and 'Datasheet' fields, which point to network shares available only in the CERN Network
 skipDatasheet = True
