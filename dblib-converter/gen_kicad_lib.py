@@ -109,7 +109,7 @@ print('Converting %s' % filename_in)
 # map to translate schematic symbol names to templates
 # (replace characters that are invalid for filenames)
 filename_trans = str.maketrans('<>:\"\\/|?*', '_________')
-part_name_trans = str.maketrans(' ', '_')
+part_name_trans = str.maketrans(' /', '__')
 
 # map of loaded templates
 symbol_templates = {}
