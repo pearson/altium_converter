@@ -1,7 +1,7 @@
 {*
  * Altium to KiCad schematic library converter script
  *
- * Copyright (C) 2017 CERN
+ * Copyright (C) 2017-2019 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -221,6 +221,17 @@ begin
 end;
 
 
+function fixPinName(aName : TDynamicString) : TDynamicString;
+begin
+    result := fixName(aName);
+
+    if aName = '' then
+    begin
+        result := '~';
+    end;
+end;
+
+
 procedure addLibHeader(aFile : TextFile);
 begin
     WriteLn(aFile, 'EESchema-LIBRARY Version 2.3');
@@ -376,7 +387,7 @@ var
 begin
     // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
 
-    number := fixName(aPin.Designator);
+    number := fixPinName(aPin.Designator);
 
     // Correct the pin position
     pos := aPin.Location;
@@ -389,7 +400,7 @@ begin
         eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
-    buf := 'X ' + fixName(aPin.Name) + ' ' + Copy(number, 1, 4)
+    buf := 'X ' + fixPinName(aPin.Name) + ' ' + Copy(number, 1, 4)
             + ' ' + locToStr(pos) + ' ' + sizeToStr(aPin.PinLength)
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
