@@ -501,15 +501,27 @@ procedure processArc(aArc : ISch_Arc; aFilled : Boolean);
 var
     buf : String;
 begin
-    // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
+    if Abs(aArc.EndAngle - aArc.StartAngle) = 360 then
+    begin
+        // circle
+        // C posx posy radius unit convert thickness cc
+        componentContents.Append('C ' + locToStr(aArc.Location)
+                + ' ' + sizeToStr(aArc.Radius)
+                + ' ' + partMode(aArc)
+                + ' ' + IntToStr(convertTSize(aArc.LineWidth))
+                + ' N'); // not filled
+    end
+    else
+    begin
+        // A posx posy radius start end part convert thickness cc start_pointX start_pointY end_pointX end_pointY
+        buf := 'A ' + locToStr(aArc.Location) + ' ' + sizeToStr(aArc.Radius)
+                + ' ' + IntToStr(aArc.EndAngle * 10) + ' ' + IntToStr(aArc.StartAngle * 10)
+                + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth));
 
-    buf := 'A ' + locToStr(aArc.Location) + ' ' + sizeToStr(aArc.Radius)
-            + ' ' + IntToStr(aArc.EndAngle * 10) + ' ' + IntToStr(aArc.StartAngle * 10)
-            + ' ' + partMode(aArc) + ' ' + IntToStr(convertTSize(aArc.LineWidth));
+        buf := buf + ifElse(aFilled, ' f ', ' N ');
 
-    buf := buf + ifElse(aFilled, ' f ', ' N ');
-
-    componentContents.Append(buf + locToStr(arcEndPt(aArc)) + ' ' + locToStr(arcStartPt(aArc)));
+        componentContents.Append(buf + locToStr(arcEndPt(aArc)) + ' ' + locToStr(arcStartPt(aArc)));
+    end;
 end;
 
 
