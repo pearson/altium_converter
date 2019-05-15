@@ -781,7 +781,7 @@ begin
     // Altium internally uses nanoinches, KiCad PCB format uses millimeters,
     // even though internally pcbnew uses nanometers
     //setScale(254, 100000000, 3, false);
-    // keep ratio, with decreased numerator it is less likely to overflow
+    // keep the ratio with decreased numerator, it is less likely to overflow
     setScale(127, 50000000, 3, false);
 
     textSizeAltium := scaleToAltium(1);
