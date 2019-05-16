@@ -3,6 +3,7 @@
 # Generates a KiCad schematic symbol library using an .mdb file as input.
 # gen_kicad_lib.py requires a set of templates created with sch_converter.pas
 # Altium script.
+OUTPUT_DIR="output"
 
 IFS=$'\n'
 for table in $(mdb-tables -d ';' "$1" | tr ';' '\n'); do
@@ -13,4 +14,9 @@ for table in $(mdb-tables -d ';' "$1" | tr ';' '\n'); do
     mkdir -p "$libpath"
     mdb-export "$1" "$table" > "$libpath/$filename"
     python3 ./gen_kicad_lib.py "$libpath/$filename"
+
+    libname="${libpath##*/}"
+    echo $libname
+    mkdir -p "${OUTPUT_DIR}/${libname}"
+    find "$libpath" -name "*.lib" -exec mv \{\} "${OUTPUT_DIR}/${libname}" \;
 done
