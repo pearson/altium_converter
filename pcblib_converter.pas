@@ -486,7 +486,7 @@ begin
     begin
         log(footprint + ': true type fonts are not supported');
 
-        if ALLOW_TTF then
+        if CONVERT_TTF then
             log(footprint + ': true type fonts are drawn using the stroke font')
         else
             throw(footprint + ': ERROR: true type fonts disabled');
