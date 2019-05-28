@@ -29,7 +29,7 @@ class SymbolTemplate:
     def __init__(self, file_name, fields):
         # get the template contents
         self._template = []
-        fhandle = open(file_name, "r")
+        fhandle = open(file_name, 'r', encoding='utf-8')
         dsFieldLine = ''
         fieldNr = 0
 
@@ -122,17 +122,17 @@ symbol_templates = {}
 
 
 # process files
-file_out = open(filename_out, 'w')
+file_out = open(filename_out, 'w', encoding='utf-8')
 file_out.write('EESchema-LIBRARY Version 2.4\r\n')
 file_out.write('#encoding utf-8\r\n')
 
-with open(filename_in, 'r') as file_in:
+with open(filename_in, 'r', encoding='utf-8') as file_in:
     cr = csv.DictReader(file_in, delimiter=',', quotechar='"')
     fields = None
 
     # try to obtain list of fields that will be added to the template
     try:
-        f = open(filename_in + '.fields', 'r')
+        f = open(filename_in + '.fields', 'r', encoding='utf-8')
         fields = f.readlines()
         f.close
     except:
