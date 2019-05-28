@@ -30,7 +30,7 @@ Not supported yet.
 
 **Database libraries (*.DbLib)**
 At the moment only MS Access based libraries are supported. Database libraries store only symbol field values and link to a graphical representation in a .SchLib file.
-Prerequisites: Python 3, [mdbtools](http://mdbtools.sourceforge.net/) (at least _mdb-tables_ and _mdb-export_)
+Prerequisites: Python 3, [mdbtools](https://github.com/brianb/mdbtools) (version 0.7 or higher; [Win binaries](https://github.com/lsgunth/mdbtools-win)).
 - Generate symbol templates using schlib_converter.pas
 - Move the generated symbol templates to *dblib-converter/templates* directory
 - Move *.mdb files to *dblib-converter*
