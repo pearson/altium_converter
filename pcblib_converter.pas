@@ -1,7 +1,7 @@
 {*
  * Altium to KiCad footprint library converter script
  *
- * Copyright (C) 2017 CERN
+ * Copyright (C) 2017-2019 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -313,9 +313,10 @@ begin
     pasteMargin := padCache.PasteMaskExpansion;
     solderMargin := padCache.SolderMaskExpansion;
 
-    // pad name in KiCad is limited to 4 chars, spaces are allowed
-    Write(outFile, '(pad ' + Copy(aPad.Name, 1, 4)
-        + ' ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad)
+    // Altium pad-to-pin mapping is case-insensitive, but KiCad is case-sensitive,
+    // so convert all pad names to upper case
+    Write(outFile, '(pad "' + UpperCase(aPad.Name)
+        + '" ' + padTypeToStr(aPad) + ' ' + shapeToStr(aPad)
         + ' (at ' + pcbXYToStr(aPad.X, aPad.Y)
         + ifElse(aPad.Rotation <> 0, ' ' + IntToStr(aPad.Rotation), '') + ') '
         + '(size ' + XYToStr(width, height) + ') ');
@@ -640,7 +641,7 @@ begin
             WriteLn(outFile, '(attr smd)');
 
         // reference and value
-        WriteLn(outFile, '(fp_text reference REF** (at '
+        WriteLn(outFile, '(fp_text reference "REF**" (at '
              + pcbXYToStr(fpX, bbox.top + textSizeAltium) + ') (layer F.SilkS)');
         WriteLn(outFile, '(effects (font (size 1 1) (thickness 0.15)))');
         WriteLn(outFile, ')');
