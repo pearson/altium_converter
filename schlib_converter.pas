@@ -234,7 +234,7 @@ end;
 
 procedure addLibHeader(aFile : TextFile);
 begin
-    WriteLn(aFile, 'EESchema-LIBRARY Version 2.3');
+    WriteLn(aFile, 'EESchema-LIBRARY Version 2.4');
     WriteLn(aFile, '#encoding utf-8');
 end;
 
@@ -382,12 +382,10 @@ end;
 procedure processPin(aPin : ISch_Pin);
 var
     pos         : TLocation;
-    shape, number : TDynamicString;
+    shape       : TDynamicString;
     buf         : TString;
 begin
     // X name number posx posy length orientation Snum Snom unit convert Etype [shape]
-
-    number := fixPinName(aPin.Designator);
 
     // Correct the pin position
     pos := aPin.Location;
@@ -400,7 +398,9 @@ begin
         eRotate270: pos.y := aPin.Location.y - aPin.PinLength;  // up
     end;
 
-    buf := 'X ' + fixPinName(aPin.Name) + ' ' + Copy(number, 1, 4)
+    // Altium pin-to-pad mapping is case-insensitive, but KiCad is case-senstive,
+    // so convert all pin names to upper case
+    buf := 'X ' + fixPinName(aPin.Name) + ' ' + UpperCase(fixPinName(aPin.Designator))
             + ' ' + locToStr(pos) + ' ' + sizeToStr(aPin.PinLength)
             + ' ' + rotToStr(aPin.Orientation)
             + ifElse(aPin.ShowDesignator, ' 60', ' 0')      // TODO get correct size
