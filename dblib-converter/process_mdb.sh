@@ -16,7 +16,6 @@ for table in $(mdb-tables -d ';' "$1" | tr ';' '\n'); do
     python3 ./gen_kicad_lib.py "$libpath/$filename"
 
     libname="${libpath##*/}"
-    echo $libname
     mkdir -p "${OUTPUT_DIR}/${libname}"
     find "$libpath" -name "*.lib" -exec mv \{\} "${OUTPUT_DIR}/${libname}" \;
 done

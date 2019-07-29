@@ -210,5 +210,3 @@ with open(filename_in, 'r', encoding='utf-8') as file_in:
 file_out.write('#\r\n')
 file_out.write('#End Library\r\n')
 file_out.close()
-
-print('Done!')
