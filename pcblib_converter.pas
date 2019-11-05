@@ -47,6 +47,10 @@ var
   smdPadCount : Integer;
   thtPadCount : Integer;
 
+  // current footprint courtyard graphics
+  courtyard : array [0..255] of IPCB_Primitive;
+  courtyardIdx : Integer;
+
 
 procedure throw(aMessage : TDynamicString);
 begin
@@ -249,6 +253,71 @@ begin
 end;
 
 
+function createTCoordPoint(x, y : Integer) : TCoordPoint;
+begin
+    result := TCoordPoint;
+    result.x := x;
+    result.y := y;
+end;
+
+
+function countCommonPts(aObjA, aObjB : IPCB_Primitive) : Integer;
+var
+    // I could not get it to work with static arrays..
+    ptsA0, ptsA1, ptsB0, ptsB1 : TCoordPoint;
+begin
+    result := 0;
+
+    case aObjA.ObjectId of
+        eArcObject:
+        begin
+            ptsA0 := createTCoordPoint(aObjA.StartX, aObjA.StartY);
+            ptsA1 := createTCoordPoint(aObjA.EndX, aObjA.EndY);
+        end;
+
+        eTrackObject:
+        begin
+            ptsA0 := createTCoordPoint(aObjA.X1, aObjA.Y1);
+            ptsA1 := createTCoordPoint(aObjA.X2, aObjA.Y2);
+        end;
+    end;
+
+    case aObjB.ObjectId of
+        eArcObject:
+        begin
+            ptsB0 := createTCoordPoint(aObjB.StartX, aObjB.StartY);
+            ptsB1 := createTCoordPoint(aObjB.EndX, aObjB.EndY);
+        end;
+
+        eTrackObject:
+        begin
+            ptsB0 := createTCoordPoint(aObjB.X1, aObjB.Y1);
+            ptsB1 := createTCoordPoint(aObjB.X2, aObjB.Y2);
+        end;
+    end;
+
+    if (ptsA0.x = ptsB0.x) and (ptsA0.y = ptsB0.y) then Inc(result);
+    if (ptsA1.x = ptsB0.x) and (ptsA1.y = ptsB0.y) then Inc(result);
+    if (ptsA1.x = ptsB1.x) and (ptsA1.y = ptsB1.y) then Inc(result);
+    if (ptsA0.x = ptsB1.x) and (ptsA0.y = ptsB1.y) then Inc(result);
+end;
+
+
+function processCourtyard(aObject : IPCB_Primitive) : Boolean;
+begin
+    // TODO handle B.CrtYd?
+    if layerToStr(aObject.Layer) <> 'F.CrtYd' then
+    begin
+        result := false;
+        exit;
+    end;
+
+    courtyard[courtyardIdx] := aObject;
+    Inc(courtyardIdx);
+    result := true;
+end;
+
+
 procedure processArc(aArc : IPCB_Arc);
 var
     endPt : TLocation;
@@ -346,8 +415,10 @@ begin
                 throw(footprint + ': ERROR: square holes are not supported');
 
             eSlotHole:
-                // KiCad does not supported rotated holes, but 90 and 270 degree
-                // rotation might be handled by swapping width and height
+                // KiCad does not supported rotated holes, but 90 and 270 degree
+
+                // rotation might be handled by swapping width and height
+
                 if((aPad.HoleRotation = 0) or (aPad.HoleRotation = 180)) then
                     Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize))
                 else if ((aPad.HoleRotation = 90) or (aPad.HoleRotation = 270)) then
@@ -558,6 +629,34 @@ begin
 end;
 
 
+procedure writeCourtyard(aDummy : Integer);
+var
+    i, j, commonPts : Integer;
+begin
+    if courtyardIdx = 0 then
+    begin
+        log(footprint + ': WARNING: missing courtyard information');
+        exit;
+    end;
+
+    for i := 0 to courtyardIdx - 1 do
+    begin
+        commonPts := 0;
+
+        for j := 0 to courtyardIdx - 1 do
+        begin
+            if i = j then continue;
+            commonPts := commonPts + countCommonPts(courtyard[i], courtyard[j]);
+        end;
+
+        if commonPts > 1 then
+        begin
+            processObject(courtyard[i]);
+        end;
+    end;
+end;
+
+
 function processFootprint(aFootprint : IPCB_LibComponent) : Boolean;
 var
     objIterator : IPCB_GroupIterator;
@@ -576,6 +675,7 @@ begin
     // (IPCB_LibComponent::BoundingRectangle() does not work)
     bbox := TCoordRect;
 
+    courtyardIdx := 0;
     objIterator := aFootprint.GroupIterator_Create();
 
     WriteLn(outFile, '(module "' + escapeQuotes(fixSpaces(footprint)) + '" (layer F.Cu) (tedit 0)');
@@ -619,13 +719,18 @@ begin
 
             while pcbObj <> nil do
             begin
-                processObject(pcbObj);
+                // courtyard requires additional processing at a later stage
+                if processCourtyard(pcbObj) = false then
+                    processObject(pcbObj);
+
                 //bbox.left   := Min(bbox.left, pcbObj.BoundingRectangle.left);
                 //bbox.right  := Max(bbox.right, pcbObj.BoundingRectangle.right);
                 bbox.bottom := Min(bbox.bottom, pcbObj.BoundingRectangle.bottom);
                 bbox.top    := Max(bbox.top, pcbObj.BoundingRectangle.top);
                 pcbObj := objIterator.NextPCBObject();
             end;
+
+            writeCourtyard(0);
         except
             result := false;
         end;
