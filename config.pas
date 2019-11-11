@@ -126,5 +126,6 @@ begin
         //eGridColor10:        result := '';
         //ePadHoleLayer:       result := '';
         //eViaHoleLayer:       result := '';
+        else                   result := '';
     end;
 end;

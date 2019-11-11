@@ -280,6 +280,12 @@ begin
             ptsA0 := createTCoordPoint(aObjA.X1, aObjA.Y1);
             ptsA1 := createTCoordPoint(aObjA.X2, aObjA.Y2);
         end;
+
+        else
+        begin
+            log(footprint + ': WARNING: unhandled courtyard object type');
+            exit;
+        end;
     end;
 
     case aObjB.ObjectId of
@@ -294,6 +300,12 @@ begin
             ptsB0 := createTCoordPoint(aObjB.X1, aObjB.Y1);
             ptsB1 := createTCoordPoint(aObjB.X2, aObjB.Y2);
         end;
+
+        else
+        begin
+            log(footprint + ': WARNING: unhandled courtyard object type');
+            exit;
+        end;
     end;
 
     if (ptsA0.x = ptsB0.x) and (ptsA0.y = ptsB0.y) then Inc(result);
@@ -306,15 +318,13 @@ end;
 function processCourtyard(aObject : IPCB_Primitive) : Boolean;
 begin
     // TODO handle B.CrtYd?
-    if layerToStr(aObject.Layer) <> 'F.CrtYd' then
-    begin
-        result := false;
-        exit;
-    end;
+    result := ((aObject.ObjectId = eTrackObject) or (aObject.ObjectId = eArcObject)) and (layerToStr(aObject.Layer) = 'F.CrtYd');
 
-    courtyard[courtyardIdx] := aObject;
-    Inc(courtyardIdx);
-    result := true;
+    if result = true then
+    begin
+        courtyard[courtyardIdx] := aObject;
+        Inc(courtyardIdx);
+    end;
 end;
 
 
