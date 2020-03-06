@@ -13,7 +13,8 @@ for table in $(mdb-tables -d ';' "$1" | tr ';' '\n'); do
     filename="$table.csv"
     mkdir -p "$libpath"
     mdb-export "$1" "$table" > "$libpath/$filename"
-    python3 ./gen_kicad_lib.py "$libpath/$filename"
+    #python3 ./gen_kicad_lib.py "$libpath/$filename"
+    ./gen_kicad_lib.exe "$libpath/$filename"
 
     libname="${libpath##*/}"
     mkdir -p "${OUTPUT_DIR}/${libname}"

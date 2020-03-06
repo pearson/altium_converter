@@ -3,7 +3,7 @@
 # Script to create KiCad symbol libraries using symbol templates
 # and .csv files to fill out the template fields.
 
-# Copyright (C) 2017-2018 CERN
+# Copyright (C) 2017-2020 CERN
 # author: Maciej Suminski <maciej.suminski@cern.ch>
 
 import sys
@@ -91,122 +91,125 @@ class SymbolTemplate:
 
         return templ_inst
 
-###############################################################################
 
-# process arguments
-if len(sys.argv) < 2:
-    print('CSV to KiCad symbol library converter')
-    print('usage: %s <library.csv> [output.lib]' % sys.argv[0])
-    sys.exit()
+def generate(filename_in, filename_out, db_table, lib_name):
+    if not os.path.isfile(filename_in):
+        sys.exit('Cannot open file %s' % filename_in)
 
-filename_in = sys.argv[1]
-filename_out = sys.argv[2] if len(sys.argv) >= 3 else filename_in.replace('.csv', '.lib')
+    print('Converting %s' % filename_in)
 
-# TODO crappy way of extracting the database and library name
-path_in = filename_in.split('/')
-lib_name = path_in[-2] + '.DbLib'
-db_table = path_in[-1].replace('.csv', '')
+    # map to translate schematic symbol names to templates
+    # (replace characters that are invalid for filenames)
+    filename_trans = str.maketrans('<>:\"\\/|?*', '_________')
+    part_name_trans = str.maketrans(' /', '__')
 
-if not os.path.isfile(filename_in):
-    sys.exit('Cannot open file %s' % filename_in)
-
-print('Converting %s' % filename_in)
-
-# map to translate schematic symbol names to templates
-# (replace characters that are invalid for filenames)
-filename_trans = str.maketrans('<>:\"\\/|?*', '_________')
-part_name_trans = str.maketrans(' /', '__')
-
-# map of loaded templates
-symbol_templates = {}
+    # map of loaded templates
+    symbol_templates = {}
 
 
-# process files
-file_out = open(filename_out, 'w', encoding='utf-8')
-file_out.write('EESchema-LIBRARY Version 2.4\r\n')
-file_out.write('#encoding utf-8\r\n')
+    # process files
+    file_out = open(filename_out, 'w', encoding='utf-8')
+    file_out.write('EESchema-LIBRARY Version 2.4\r\n')
+    file_out.write('#encoding utf-8\r\n')
 
-with open(filename_in, 'r', encoding='utf-8') as file_in:
-    cr = csv.DictReader(file_in, delimiter=',', quotechar='"')
-    fields = None
+    with open(filename_in, 'r', encoding='utf-8') as file_in:
+        cr = csv.DictReader(file_in, delimiter=',', quotechar='"')
+        fields = None
 
-    # try to obtain list of fields that will be added to the template
-    try:
-        f = open(filename_in + '.fields', 'r', encoding='utf-8')
-        fields = f.readlines()
-        f.close
-    except:
-        pass
-
-    for part in cr:
-        # escape quotes
-        for key in part:
-            # some .csv entries give 'Pin Count' as float values,
-            # so convert them to int
-            try:
-                if key == 'Pin Count':
-                    part[key] = str(int(float(part[key])))
-            except:
-                pass
-
-            # try to evaluate '=FieldName' values
-            try:
-                if part[key][0] == '=':
-                    part[key] = part[part[key][1:]]
-            except:
-                pass
-
-            # KiCad does not allow empty fields
-            if part[key] == '':
-                part[key] = ' '
-
-            # escape backslashes and quotes
-            else:
-                part[key] = part[key].replace('\\', '\\\\')
-                part[key] = part[key].replace('"', '\\"')
-
-        # extract and store the footprint library name
-        fp_lib = part['Footprint Path'].replace('.PcbLib', '')
-
-        # strip path and extension from the template name
-        slash = fp_lib.rfind('\\')
-        if slash >= 0:
-            fp_lib = fp_lib[slash+1:]
-
-        # part number cannot contain spaces
-        part['Part Number'] = part['Part Number'].translate(part_name_trans)
-
-        # some additional fields
-        part['Database Table Name'] = db_table
-        part['Library Name'] = lib_name
-        part['Footprint Library'] = fp_lib
-        part['License'] = licenseText
-
-        if filterURL:
-            part['HelpURL'] = ' '
-
-        # pick the corresponding template
-        template_name = part['Library Ref'].translate(filename_trans)
-        template_path = './templates/' + part['Library Path'].split('\\\\')[1].replace('.SchLib', '/')
-
+        # try to obtain list of fields that will be added to the template
         try:
-            # either load a template or use the existing one
-            if template_name in symbol_templates:
-                template = symbol_templates[template_name]
-            else:
-                template = SymbolTemplate(template_path + template_name + '.lib',
-                                    part.keys() if fields == None else fields)
-                symbol_templates[template_name] = template
-
-            # generate a part instance
-            for l in template.generate(part):
-                file_out.write(l)
+            f = open(filename_in + '.fields', 'r', encoding='utf-8')
+            fields = f.readlines()
+            f.close
         except:
-            print('Skipping %s: \'%s%s.lib\' template is not available'
-                    % (part['Part Number'], template_path, template_name))
+            pass
 
-        # print(part)
+        for part in cr:
+            # escape quotes
+            for key in part:
+                # some .csv entries give 'Pin Count' as float values,
+                # so convert them to int
+                try:
+                    if key == 'Pin Count':
+                        part[key] = str(int(float(part[key])))
+                except:
+                    pass
 
-file_out.write('#\r\n')
-file_out.write('#End Library\r\n')
-file_out.close()
+                # try to evaluate '=FieldName' values
+                try:
+                    if part[key][0] == '=':
+                        part[key] = part[part[key][1:]]
+                except:
+                    pass
+
+                # KiCad does not allow empty fields
+                if part[key] == '':
+                    part[key] = ' '
+
+                # escape backslashes and quotes
+                else:
+                    part[key] = part[key].replace('\\', '\\\\')
+                    part[key] = part[key].replace('"', '\\"')
+
+            # extract and store the footprint library name
+            fp_lib = part['Footprint Path'].replace('.PcbLib', '')
+
+            # strip path and extension from the template name
+            slash = fp_lib.rfind('\\')
+            if slash >= 0:
+                fp_lib = fp_lib[slash+1:]
+
+            # part number cannot contain spaces
+            part['Part Number'] = part['Part Number'].translate(part_name_trans)
+
+            # some additional fields
+            part['Database Table Name'] = db_table
+            part['Library Name'] = lib_name
+            part['Footprint Library'] = fp_lib
+            part['License'] = licenseText
+
+            if filterURL:
+                part['HelpURL'] = ' '
+
+            # pick the corresponding template
+            template_name = part['Library Ref'].translate(filename_trans)
+            template_path = './templates/' + part['Library Path'].split('\\\\')[1].replace('.SchLib', '/')
+
+            try:
+                # either load a template or use the existing one
+                if template_name in symbol_templates:
+                    template = symbol_templates[template_name]
+                else:
+                    template = SymbolTemplate(template_path + template_name + '.lib',
+                                        part.keys() if fields == None else fields)
+                    symbol_templates[template_name] = template
+
+                # generate a part instance
+                for l in template.generate(part):
+                    file_out.write(l)
+            except:
+                print('Skipping %s: \'%s%s.lib\' template is not available'
+                        % (part['Part Number'], template_path, template_name))
+
+            # print(part)
+
+    file_out.write('#\r\n')
+    file_out.write('#End Library\r\n')
+    file_out.close()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print('CSV to KiCad symbol library converter')
+        print('usage: %s <library.csv> [output.lib]' % sys.argv[0])
+        sys.exit()
+
+    filename_in = sys.argv[1]
+    filename_out = sys.argv[2] if len(sys.argv) >= 3 else filename_in.replace('.csv', '.lib')
+    
+    # TODO crappy way of extracting the database and library name
+    path_in = filename_in.split('/')
+    lib_name = path_in[-2] + '.DbLib'
+    db_table = path_in[-1].replace('.csv', '')
+
+    generate(filename_in, filename_out, db_table, lib_name)
