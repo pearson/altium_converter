@@ -1,0 +1,10 @@
+History
+PcbLib
+PcbLib_Extra
+dblib-converter/__pycache__
+dblib-converter/build
+dblib-converter/dist
+dblib-converter/mdbs
+dblib-converter/output
+dblib-converter/templates
+dblib-converter/tools
