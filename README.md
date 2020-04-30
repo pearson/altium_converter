@@ -1,10 +1,10 @@
 ## Altium to KiCad library converter
-(c) 2017-2018 CERN
+(c) 2017-2020 CERN
 
 Scripts to convert Altium schematic and footprint libraries to KiCad format.
 The scripts are written in the Altium scripting language (DelphiScript) and as
-such, they require Altium. They have been tested with Altium 14.3, but most
-likely work with other versions too.
+such, they require Altium. They have been verified to work with Altium 14.3, 16.1 and 17.1,
+but it is known that there are problems with 18.0.
 
 ### Configuration
 The scripts have several options that might be changed by modifying *config.pas* file. Most of default values will work fine for you, but you should at least verify the layer mapping for footprint converter (especially mechanical layers) and modify *MODEL_PATH* if you want to have STEP files associated with footprints.
