@@ -1,17 +1,20 @@
+rem Modify the line below to select the output directory for converted libraries
+set DESTINATION=G:\Applications\KiCad
+
 cd dblib-converter
 convert_all.exe
 cd ..
 
-mkdir G:\Applications\KiCad\PcbLib.new
-xcopy PcbLib G:\Applications\KiCad\PcbLib.new /S /EXCLUDE:upload_exclude.txt
-rmdir /s /q G:\Applications\KiCad\PcbLib.old
-move G:\Applications\KiCad\PcbLib G:\Applications\KiCad\PcbLib.old
-move G:\Applications\KiCad\PcbLib.new G:\Applications\KiCad\PcbLib
+mkdir %DESTINATION%\PcbLib.new
+xcopy PcbLib %DESTINATION%\PcbLib.new /S /EXCLUDE:upload_exclude.txt
+rmdir /s /q %DESTINATION%\PcbLib.old
+move %DESTINATION%\PcbLib %DESTINATION%\PcbLib.old
+move %DESTINATION%\PcbLib.new %DESTINATION%\PcbLib
 
-mkdir G:\Applications\KiCad\SchLib.new
-xcopy dblib-converter\output G:\Applications\KiCad\SchLib.new /S /EXCLUDE:upload_exclude.txt
-rmdir /s /q G:\Applications\KiCad\SchLib.old
-move G:\Applications\KiCad\SchLib G:\Applications\KiCad\SchLib.old
-move G:\Applications\KiCad\SchLib.new G:\Applications\KiCad\SchLib
+mkdir %DESTINATION%\SchLib.new
+xcopy dblib-converter\output %DESTINATION%\SchLib.new /S /EXCLUDE:upload_exclude.txt
+rmdir /s /q %DESTINATION%\SchLib.old
+move %DESTINATION%\SchLib %DESTINATION%\SchLib.old
+move %DESTINATION%\SchLib.new %DESTINATION%\SchLib
 
 pause
