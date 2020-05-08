@@ -64,7 +64,7 @@ class SymbolTemplate:
                         if filterURL and field in ('HelpURL', 'ComponentLink1URL', 'ComponentLink2URL', 'ComponentLink3URL'):
                             continue
 
-                        fieldLine = 'F%d "${%s}" %d %d %d H I L CNN "%s"\r\n' \
+                        fieldLine = 'F%d "${%s}" %d %d %d H I L CNN "%s"\n' \
                                     % (fieldNr, field, posX, posY, fieldTextSize, field)
                         self._template.append(MultiwordTemplate(fieldLine))
 
@@ -109,8 +109,8 @@ def generate(filename_in, filename_out, db_table, lib_name):
 
     # process files
     file_out = open(filename_out, 'w', encoding='utf-8')
-    file_out.write('EESchema-LIBRARY Version 2.4\r\n')
-    file_out.write('#encoding utf-8\r\n')
+    file_out.write('EESchema-LIBRARY Version 2.4\n')
+    file_out.write('#encoding utf-8\n')
 
     with open(filename_in, 'r', encoding='utf-8') as file_in:
         cr = csv.DictReader(file_in, delimiter=',', quotechar='"')
@@ -193,8 +193,8 @@ def generate(filename_in, filename_out, db_table, lib_name):
 
             # print(part)
 
-    file_out.write('#\r\n')
-    file_out.write('#End Library\r\n')
+    file_out.write('#\n')
+    file_out.write('#End Library')
     file_out.close()
 
 
