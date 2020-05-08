@@ -19,7 +19,7 @@ fieldTextInterline = 1.5
 # license text added in 'License' field
 licenseText = """This work is licensed under the Creative Commons CC-BY-SA 4.0 License. To the extent that circuit schematics that use Licensed Material can be considered to be ‘Adapted Material’, then the copyright holder waives article 3.b of the license with respect to these schematics."""
 # filter fields containing addresses accessible only in the internal network
-filterURL = True
+filterURL = False
 
 
 class MultiwordTemplate(string.Template):
