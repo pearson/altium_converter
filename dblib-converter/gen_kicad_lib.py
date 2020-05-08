@@ -151,6 +151,9 @@ def generate(filename_in, filename_out, db_table, lib_name):
                     part[key] = part[key].replace('\\', '\\\\')
                     part[key] = part[key].replace('"', '\\"')
 
+                # remove new-line characters
+                part[key] = ' '.join(part[key].splitlines())
+
             # extract and store the footprint library name
             fp_lib = part['Footprint Path'].replace('.PcbLib', '')
 
