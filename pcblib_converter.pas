@@ -1,7 +1,7 @@
 {*
  * Altium to KiCad footprint library converter script
  *
- * Copyright (C) 2017-2019 CERN
+ * Copyright (C) 2017-2020 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -375,20 +375,44 @@ var
 begin
     // (pad 1 smd rect (at -4 0 180) (size 4 2.5) (layers F.Cu F.Paste F.Mask))
 
-    if aPad.Mode <> ePadMode_Simple then
+    // determine the pad dimensions, depending on the pad stack and configuration
+    if aPad.Mode = ePadMode_Simple then
     begin
+        // simple pads
+        width  := aPad.TopXSize;
+        height := aPad.TopYSize;
+    end
+
+    else if aPad.Mode = ePadMode_LocalStack then
+    begin
+        // local pad stack defines top, bottom and inner layer shape and size
+        if not ((aPad.TopShape = aPad.MidShape) and (aPad.MidShape = aPad.BotShape)) then
+            throw(footprint + ': ERROR: complex pad stack (different pad shaps on each layer): ' + aPad.Name);
+
+        // there is an option that in case of complex pad stack
+        // will use the largest pad size
+        if LARGEST_COMPLEX_PAD then
+        begin
+            width  := Max(aPad.TopXSize, Max(aPad.MidXSize, aPad.BotXSize));
+            height := Max(aPad.TopYSize, Max(aPad.MidYSize, aPad.BotYSize));
+        end
+
         // there is still a chance if all layers have the same shape and size
         // (basically it is a simple stack)
-        if not((aPad.Mode = ePadMode_LocalStack) and
-          (aPad.TopShape = aPad.MidShape) and (aPad.MidShape = aPad.BotShape) and
-          (aPad.TopXSize = aPad.MidXSize) and (aPad.MidXSize = aPad.BotXSize) and
+        else if ((aPad.TopXSize = aPad.MidXSize) and (aPad.MidXSize = aPad.BotXSize) and
           (aPad.TopYSize = aPad.MidYSize) and (aPad.MidYSize = aPad.BotYSize)) then
+        begin
+            width  := aPad.TopXSize;    // equal to MidXSize and BotXSize
+            height := aPad.TopYSize;    // equal to MidYSize and BotYSize
+        end
+
+        else
             throw(footprint + ': ERROR: only simple pads are supported: ' + aPad.Name);
-    end;
+    end
+    else
+        throw(footprint + ': ERROR: external pad stack is not supported: ' + aPad.Name);
 
     padCache := aPad.GetState_Cache();
-    width := aPad.TopXSize;
-    height := aPad.TopYSize;
     pasteMargin := padCache.PasteMaskExpansion;
     solderMargin := padCache.SolderMaskExpansion;
 
@@ -429,7 +453,7 @@ begin
 
                 // rotation might be handled by swapping width and height
 
-                if((aPad.HoleRotation = 0) or (aPad.HoleRotation = 180)) then
+                if ((aPad.HoleRotation = 0) or (aPad.HoleRotation = 180)) then
                     Write(outFile, 'oval ' + sizeToStr(aPad.HoleWidth) + ' ' + sizeToStr(aPad.HoleSize))
                 else if ((aPad.HoleRotation = 90) or (aPad.HoleRotation = 270)) then
                     Write(outFile, 'oval ' + sizeToStr(aPad.HoleSize) + ' ' + sizeToStr(aPad.HoleWidth))

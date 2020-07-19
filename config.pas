@@ -1,7 +1,7 @@
 {*
  * Altium to KiCad converter script - configuration
  *
- * Copyright (C) 2017 CERN
+ * Copyright (C) 2017-2020 CERN
  * @author Maciej Suminski <maciej.suminski@cern.ch>
  *
  * This program is free software; you can redistribute it and/or
@@ -68,6 +68,10 @@ const
 
   // Should the footprint name (value) be hidden by default during conversion
   HIDE_NAME = true;
+
+  // Use the largest pad size when converting a pad with a fully defined
+  // layer stack
+  LARGEST_COMPLEX_PAD = false;
 
 
 // Defines layer mapping used for footprint conversion
